@@ -14,7 +14,7 @@ describe('ParticipantView', () => {
     isCurrentUser: true,
   };
 
-  const activeSession: any = { code: 'AABB22', status: 'active' };
+  const activeSession = { code: 'AABB22', status: 'active' as const };
 
   it('displays formatted label correctly', () => {
     render(<ParticipantView participant={{ ...baseParticipant, disambiguationIndex: 2 }} session={activeSession} />);
@@ -33,7 +33,7 @@ describe('ParticipantView', () => {
   });
 
   it('paused banner shown when session.status = paused', () => {
-    render(<ParticipantView participant={baseParticipant} session={{ code: 'AABB22', status: 'paused' }} />);
+    render(<ParticipantView participant={baseParticipant} session={{ code: 'AABB22', status: 'paused' as const }} />);
     expect(screen.getByText('A fila está pausada.')).toBeDefined();
   });
 

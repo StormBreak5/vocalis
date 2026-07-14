@@ -1,5 +1,5 @@
 import { Metadata } from 'next';
-import { Copy, Mic2, Plus, Smartphone, Users } from 'lucide-react';
+import { Mic2 } from 'lucide-react';
 import Link from 'next/link';
 import { CreateSessionButton } from '@/src/components/session/CreateSessionButton';
 

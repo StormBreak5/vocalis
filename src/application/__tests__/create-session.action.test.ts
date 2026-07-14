@@ -11,8 +11,16 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
+interface MockSupabase {
+  auth: {
+    getSession: ReturnType<typeof vi.fn>;
+    signInAnonymously: ReturnType<typeof vi.fn>;
+  };
+  rpc: ReturnType<typeof vi.fn>;
+}
+
 describe('createSessionAction', () => {
-  let mockSupabase: any;
+  let mockSupabase: MockSupabase;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -23,7 +31,7 @@ describe('createSessionAction', () => {
       },
       rpc: vi.fn(),
     };
-    (createSupabaseServerClient as any).mockResolvedValue(mockSupabase);
+    vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as unknown as Awaited<ReturnType<typeof createSupabaseServerClient>>);
   });
 
   it('returns session on success (new anonymous user)', async () => {

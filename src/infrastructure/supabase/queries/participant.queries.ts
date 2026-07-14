@@ -28,7 +28,30 @@ export async function getParticipantFromCookie(code: string, cookieValue: string
       lastSeen: recoveredRow.last_seen,
       createdAt: recoveredRow.created_at,
     };
-  } catch (err) {
+  } catch {
     return null;
   }
+}
+
+export async function getParticipantsBySessionId(sessionId: string): Promise<Participant[]> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from('participants')
+    .select('*')
+    .eq('session_id', sessionId)
+    .order('joined_at', { ascending: true });
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data.map((row) => ({
+    id: row.id,
+    sessionId: row.session_id,
+    displayName: row.display_name,
+    disambiguationIndex: row.disambiguation_index,
+    joinedAt: row.joined_at,
+    lastSeen: row.last_seen,
+    createdAt: row.created_at,
+  }));
 }

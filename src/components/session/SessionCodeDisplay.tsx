@@ -6,10 +6,9 @@ import { toast } from 'sonner';
 
 interface SessionCodeDisplayProps {
   code: string;
-  sessionId?: string; // used later for realtime or other features
 }
 
-export function SessionCodeDisplay({ code, sessionId }: SessionCodeDisplayProps) {
+export function SessionCodeDisplay({ code }: SessionCodeDisplayProps) {
   const handleCopy = async () => {
     try {
       if (navigator.clipboard && window.isSecureContext) {
@@ -28,7 +27,7 @@ export function SessionCodeDisplay({ code, sessionId }: SessionCodeDisplayProps)
         textArea.remove();
       }
       toast.success('Código copiado!');
-    } catch (err) {
+    } catch {
       toast.error('Falha ao copiar o código.');
     }
   };
@@ -42,9 +41,9 @@ export function SessionCodeDisplay({ code, sessionId }: SessionCodeDisplayProps)
           // We can also share a URL if we know the domain, but text is fine for MVP
         });
         toast.success('Compartilhado com sucesso!');
-      } catch (err: any) {
+      } catch (err: unknown) {
         // AbortError is thrown when user cancels share, ignore it
-        if (err.name !== 'AbortError') {
+        if (err instanceof Error && err.name !== 'AbortError') {
           handleCopy();
         }
       }

@@ -11,22 +11,31 @@ vi.mock('next/headers', () => ({
   cookies: vi.fn(),
 }));
 
+interface MockSupabase {
+  rpc: ReturnType<typeof vi.fn>;
+}
+
+interface MockCookies {
+  get: ReturnType<typeof vi.fn>;
+  set: ReturnType<typeof vi.fn>;
+}
+
 describe('joinSessionAction', () => {
-  let mockSupabase: any;
-  let mockCookies: any;
+  let mockSupabase: MockSupabase;
+  let mockCookies: MockCookies;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockSupabase = {
       rpc: vi.fn(),
     };
-    (createSupabaseServerClient as any).mockResolvedValue(mockSupabase);
+    vi.mocked(createSupabaseServerClient).mockResolvedValue(mockSupabase as unknown as Awaited<ReturnType<typeof createSupabaseServerClient>>);
 
     mockCookies = {
       get: vi.fn().mockReturnValue(undefined),
       set: vi.fn(),
     };
-    (cookies as any).mockResolvedValue(mockCookies);
+    vi.mocked(cookies).mockResolvedValue(mockCookies as unknown as Awaited<ReturnType<typeof cookies>>);
   });
 
   it('returns INVALID_CODE_FORMAT for invalid code', async () => {

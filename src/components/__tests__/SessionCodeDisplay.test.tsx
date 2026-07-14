@@ -22,8 +22,10 @@ describe('SessionCodeDisplay', () => {
       },
       share: vi.fn().mockResolvedValue(undefined),
     });
-    // @ts-ignore
-    window.isSecureContext = true;
+    Object.defineProperty(window, 'isSecureContext', {
+      value: true,
+      writable: true
+    });
   });
 
   // Restore global objects if needed
@@ -35,12 +37,12 @@ describe('SessionCodeDisplay', () => {
   });
 
   it('displays code correctly', () => {
-    render(<SessionCodeDisplay code="AABB11" sessionId="123" />);
+    render(<SessionCodeDisplay code="AABB11" />);
     expect(screen.getByText('AABB11')).toBeDefined();
   });
 
   it('copy button calls navigator.clipboard.writeText', async () => {
-    render(<SessionCodeDisplay code="AABB11" sessionId="123" />);
+    render(<SessionCodeDisplay code="AABB11" />);
     const copyBtn = screen.getByRole('button', { name: /Copiar/i });
     fireEvent.click(copyBtn);
 
@@ -51,7 +53,7 @@ describe('SessionCodeDisplay', () => {
   });
 
   it('share button calls navigator.share when available', async () => {
-    render(<SessionCodeDisplay code="AABB11" sessionId="123" />);
+    render(<SessionCodeDisplay code="AABB11" />);
     const shareBtn = screen.getByRole('button', { name: /Compartilhar/i });
     fireEvent.click(shareBtn);
 
@@ -66,7 +68,7 @@ describe('SessionCodeDisplay', () => {
 
   it('share button falls back to copy when navigator.share is missing', async () => {
     Object.assign(navigator, { share: undefined });
-    render(<SessionCodeDisplay code="AABB11" sessionId="123" />);
+    render(<SessionCodeDisplay code="AABB11" />);
     const shareBtn = screen.getByRole('button', { name: /Compartilhar/i });
     fireEvent.click(shareBtn);
 

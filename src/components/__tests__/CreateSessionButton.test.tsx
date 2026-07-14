@@ -15,12 +15,12 @@ vi.mock('sonner', () => ({
 }));
 
 describe('CreateSessionButton', () => {
-  let mockPush: any;
+  let mockPush: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockPush = vi.fn();
-    (useRouter as any).mockReturnValue({ push: mockPush });
+    vi.mocked(useRouter).mockReturnValue({ push: mockPush } as unknown as ReturnType<typeof useRouter>);
   });
 
   it('renders button with accessible label', () => {

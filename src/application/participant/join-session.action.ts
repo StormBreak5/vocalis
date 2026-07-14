@@ -17,14 +17,20 @@ export async function joinSessionAction(
 
     try {
       validCode = validateSessionCode(code);
-    } catch (err: any) {
-      return { ok: false, code: 'INVALID_CODE_FORMAT', userMessage: err.userMessage || 'Código inválido.' };
+    } catch (err: unknown) {
+      const userMessage = err && typeof err === 'object' && 'userMessage' in err 
+        ? String(err.userMessage) 
+        : 'Código inválido.';
+      return { ok: false, code: 'INVALID_CODE_FORMAT', userMessage };
     }
 
     try {
       validName = validateDisplayName(displayName);
-    } catch (err: any) {
-      return { ok: false, code: 'INVALID_NAME', userMessage: err.userMessage || 'Nome inválido.' };
+    } catch (err: unknown) {
+      const userMessage = err && typeof err === 'object' && 'userMessage' in err 
+        ? String(err.userMessage) 
+        : 'Nome inválido.';
+      return { ok: false, code: 'INVALID_NAME', userMessage };
     }
 
     const supabase = await createSupabaseServerClient();
@@ -41,8 +47,8 @@ export async function joinSessionAction(
           participantId = parsed.participantId;
           recoveryToken = parsed.recoveryToken;
         }
-      } catch (err) {
-        // invalid cookie, ignore
+      } catch {
+        // Ignore parse error
       }
     }
 
@@ -93,8 +99,8 @@ export async function joinSessionAction(
       return { ok: false, code: 'UNKNOWN', userMessage: 'Erro ao entrar na sala.' };
     }
 
-    const row = data.participant as any;
-    const newRecoveryToken = data.recovery_token as string;
+    const row = data.participant;
+    const newRecoveryToken = data.recovery_token;
 
     const participant: Participant = {
       id: row.id,

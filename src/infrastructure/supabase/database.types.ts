@@ -40,6 +40,7 @@ export interface Database {
           created_at?: string
           closed_at?: string | null
         }
+        Relationships: []
       }
       participants: {
         Row: {
@@ -72,6 +73,15 @@ export interface Database {
           last_seen?: string
           created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "participants_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
@@ -104,6 +114,9 @@ export interface Database {
       }
     }
     Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
       [_ in never]: never
     }
   }

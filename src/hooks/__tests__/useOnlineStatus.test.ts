@@ -3,8 +3,8 @@ import { renderHook, act } from '@testing-library/react';
 import { useOnlineStatus } from '../useOnlineStatus';
 
 describe('useOnlineStatus', () => {
-  let addEventListenerSpy: any;
-  let removeEventListenerSpy: any;
+  let addEventListenerSpy: ReturnType<typeof vi.spyOn>;
+  let removeEventListenerSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.stubGlobal('navigator', { onLine: true });

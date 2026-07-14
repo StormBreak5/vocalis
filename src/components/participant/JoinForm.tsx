@@ -10,7 +10,6 @@ import { Label } from '@/src/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { normalizeCode } from '@/src/domain/validators/session-code.validator';
-import { normalizeDisplayName } from '@/src/domain/validators/display-name.validator';
 
 interface JoinFormProps {
   initialCode?: string;
