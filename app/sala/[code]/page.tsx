@@ -1,0 +1,60 @@
+import { getSessionByCode } from '@/src/infrastructure/supabase/queries/session.queries';
+import { getParticipantFromCookie } from '@/src/infrastructure/supabase/queries/participant.queries';
+import { cookies } from 'next/headers';
+import { JoinForm } from '@/src/components/participant/JoinForm';
+import { ParticipantView } from '@/src/components/participant/ParticipantView';
+import { ParticipantSkeleton } from '@/src/components/participant/ParticipantSkeleton';
+import { Suspense } from 'react';
+import { Mic2 } from 'lucide-react';
+
+export default async function GuestRoomPage({
+  params,
+}: {
+  params: Promise<{ code: string }>;
+}) {
+  const { code } = await params;
+  const uppercaseCode = code.toUpperCase();
+
+  const session = await getSessionByCode(uppercaseCode);
+
+  if (!session || session.status === 'closed') {
+    return (
+      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-2xl font-bold mb-2">Sessão Encerrada</h1>
+        <p className="text-muted-foreground">Esta sala não existe ou já foi finalizada.</p>
+      </main>
+    );
+  }
+
+  const cookieStore = await cookies();
+  const pidCookie = cookieStore.get('vocalis_pid')?.value;
+  
+  let participant = null;
+  if (pidCookie) {
+    participant = await getParticipantFromCookie(uppercaseCode, pidCookie);
+  }
+
+  return (
+    <main className="flex-1 flex flex-col p-6 w-full max-w-lg mx-auto">
+      <header className="flex flex-col items-center text-center space-y-4 mb-10 mt-6">
+        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+          <Mic2 className="w-8 h-8 text-primary" />
+        </div>
+        <h1 className="text-3xl font-black tracking-tight">Sala {uppercaseCode}</h1>
+      </header>
+
+      <Suspense fallback={<ParticipantSkeleton />}>
+        {participant ? (
+          <ParticipantView 
+            participant={{ ...participant, isCurrentUser: true }} 
+            session={{ code: session.code, status: session.status }} 
+          />
+        ) : (
+          <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+            <JoinForm initialCode={uppercaseCode} />
+          </div>
+        )}
+      </Suspense>
+    </main>
+  );
+}

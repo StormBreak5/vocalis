@@ -1,65 +1,65 @@
-import Image from "next/image";
+import { Metadata } from 'next';
+import { Copy, Mic2, Plus, Smartphone, Users } from 'lucide-react';
+import Link from 'next/link';
+import { CreateSessionButton } from '@/src/components/session/CreateSessionButton';
+
+export const metadata: Metadata = {
+  title: 'Vocalis — Karaokê ao Vivo',
+};
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="flex-1 flex flex-col items-center justify-center p-6 md:p-12 w-full max-w-lg mx-auto">
+      <div className="w-full space-y-12">
+        <header className="text-center space-y-4">
+          <div className="mx-auto w-20 h-20 bg-primary/20 rounded-full flex items-center justify-center mb-6">
+            <Mic2 className="w-10 h-10 text-primary" />
+          </div>
+          <h1 className="text-4xl font-black tracking-tight drop-shadow-md">
+            Vocalis
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-lg text-muted-foreground font-medium">
+            Sua fila de karaokê ao vivo.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        </header>
+
+        <section className="space-y-6 w-full">
+          <div className="bg-card text-card-foreground border border-border shadow-xl rounded-2xl p-6 md:p-8 space-y-8">
+            <div className="space-y-4">
+              <h2 className="text-2xl font-bold tracking-tight text-center">
+                Você é o anfitrião?
+              </h2>
+              <p className="text-sm text-muted-foreground text-center">
+                Crie uma sala e gerencie os cantores.
+              </p>
+              <CreateSessionButton />
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-border" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-3 text-muted-foreground tracking-wider font-semibold">
+                  Ou
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h2 className="text-xl font-bold tracking-tight text-center">
+                Vai cantar?
+              </h2>
+              <p className="text-sm text-muted-foreground text-center">
+                Entre na sala com o código na tela.
+              </p>
+              <Link href="/entrar" className="inline-flex items-center justify-center rounded-xl text-lg font-semibold w-full min-h-[48px] bg-secondary text-secondary-foreground hover:bg-[color-mix(in_oklch,var(--secondary),var(--foreground)_5%)]">
+                Entrar em uma Sala
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
