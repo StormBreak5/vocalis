@@ -49,7 +49,9 @@
 3. **Expected**: User is kicked back to the Join Session form.
 4. Join again. A new anonymous identity is generated.
 
-### Scenario 7: Abuse Mitigation (Admin Check)
-1. Verify in the Supabase Dashboard that Rate Limiting for Anonymous sign-ins is enabled.
-2. Attempt to create 100 anonymous sessions rapidly via script.
-3. **Expected**: Supabase blocks the IP with a `429 Too Many Requests` error.
+### Scenario 7: Abuse Mitigation (Admin Check & Configuration)
+1. **Configuring Rate Limits**: In the Supabase Dashboard, navigate to **Authentication -> Rate Limits**.
+2. Locate the "Anonymous Sign-ins" section.
+3. Configure the rate limit to a reasonable threshold for a bar environment (e.g., 30 requests per hour per IP address) to prevent spam while accommodating multiple users on the same WiFi.
+4. **Validation**: Attempt to create anonymous sessions rapidly via a script exceeding the configured limit.
+5. **Expected**: Supabase blocks the IP with a `429 Too Many Requests` error.

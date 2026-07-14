@@ -1,9 +1,10 @@
 import { getSessionByCode } from '@/src/infrastructure/supabase/queries/session.queries';
-import { getParticipantFromCookie } from '@/src/infrastructure/supabase/queries/participant.queries';
-import { cookies } from 'next/headers';
+import { getParticipantForSessionCode } from '@/src/infrastructure/supabase/queries/participant.queries';
 import { JoinForm } from '@/src/components/participant/JoinForm';
 import { ParticipantView } from '@/src/components/participant/ParticipantView';
 import { ParticipantSkeleton } from '@/src/components/participant/ParticipantSkeleton';
+import { RequestSongForm } from '@/src/components/queue/RequestSongForm';
+import { QueueList } from '@/src/components/queue/QueueList';
 import { Suspense } from 'react';
 import { Mic2 } from 'lucide-react';
 
@@ -26,13 +27,7 @@ export default async function GuestRoomPage({
     );
   }
 
-  const cookieStore = await cookies();
-  const pidCookie = cookieStore.get('vocalis_pid')?.value;
-  
-  let participant = null;
-  if (pidCookie) {
-    participant = await getParticipantFromCookie(uppercaseCode, pidCookie);
-  }
+  const participant = await getParticipantForSessionCode(uppercaseCode);
 
   return (
     <main className="flex-1 flex flex-col p-6 w-full max-w-lg mx-auto">
@@ -45,10 +40,20 @@ export default async function GuestRoomPage({
 
       <Suspense fallback={<ParticipantSkeleton />}>
         {participant ? (
-          <ParticipantView 
-            participant={{ ...participant, isCurrentUser: true }} 
-            session={{ code: session.code, status: session.status }} 
-          />
+          <div className="space-y-6 flex-1 flex flex-col">
+            <ParticipantView 
+              participant={{ ...participant, isCurrentUser: true }} 
+              session={{ code: session.code, status: session.status }} 
+            />
+            {/* A form handles adding songs, and the list handles the real-time queue. */}
+            {/* The active song checking happens on server action and DB, but we could pass state if we wanted. */}
+            {/* For now, QueueList renders the state independently. */}
+            <RequestSongForm sessionId={session.id} />
+            
+            <div className="pt-6 border-t">
+              <QueueList sessionId={session.id} currentParticipantId={participant.id} />
+            </div>
+          </div>
         ) : (
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
             <JoinForm initialCode={uppercaseCode} />

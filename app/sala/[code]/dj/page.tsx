@@ -3,6 +3,8 @@ import { getParticipantsBySessionId } from '@/src/infrastructure/supabase/querie
 import { createSupabaseServerClient } from '@/src/infrastructure/supabase/server';
 import { redirect } from 'next/navigation';
 import { SessionCodeDisplay } from '@/src/components/session/SessionCodeDisplay';
+import { SessionStatusToggle } from '@/src/components/session/SessionStatusToggle';
+import { QueueList } from '@/src/components/queue/QueueList';
 import { formatParticipantLabel } from '@/src/domain/participant.utils';
 import { Users } from 'lucide-react';
 
@@ -24,11 +26,9 @@ export default async function HostDashboardPage({
   }
 
   const supabase = await createSupabaseServerClient();
-  const { data: { session: authSession } } = await supabase.auth.getSession();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  const userId = authSession?.user?.id;
-
-  if (session.hostId !== userId) {
+  if (authError || !user || user.id !== session.hostId) {
     redirect(`/sala/${code}`);
   }
 
@@ -42,8 +42,16 @@ export default async function HostDashboardPage({
       </header>
       
       <SessionCodeDisplay code={session.code} />
+      
+      <div className="mt-8 flex justify-center">
+        <SessionStatusToggle sessionId={session.id} initialStatus={session.status} />
+      </div>
 
       <section className="mt-12">
+        <QueueList sessionId={session.id} isHost={true} />
+      </section>
+
+      <section className="mt-12 pt-8 border-t">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Users className="w-5 h-5 text-primary" />

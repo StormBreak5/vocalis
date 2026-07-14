@@ -10,11 +10,11 @@ export async function createSessionAction(): Promise<AppSuccess<{ session: Sessi
     const supabase = await createSupabaseServerClient();
     
     // Check current auth
-    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
     let userId: string;
     
-    if (!authSession) {
+    if (authError || !user) {
       // Sign in anonymously
       const { data, error } = await supabase.auth.signInAnonymously();
       if (error || !data.user) {
@@ -22,7 +22,7 @@ export async function createSessionAction(): Promise<AppSuccess<{ session: Sessi
       }
       userId = data.user.id;
     } else {
-      userId = authSession.user.id;
+      userId = user.id;
     }
 
     // Call RPC

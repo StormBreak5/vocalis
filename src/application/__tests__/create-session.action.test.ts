@@ -13,7 +13,7 @@ vi.mock('next/cache', () => ({
 
 interface MockSupabase {
   auth: {
-    getSession: ReturnType<typeof vi.fn>;
+    getUser: ReturnType<typeof vi.fn>;
     signInAnonymously: ReturnType<typeof vi.fn>;
   };
   rpc: ReturnType<typeof vi.fn>;
@@ -26,8 +26,8 @@ describe('createSessionAction', () => {
     vi.clearAllMocks();
     mockSupabase = {
       auth: {
-        getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-        signInAnonymously: vi.fn().mockResolvedValue({ data: { user: { id: 'test-user-id' } }, error: null }),
+        getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
+        signInAnonymously: vi.fn().mockResolvedValue({ data: { user: { id: 'anon-user-123' } }, error: null }),
       },
       rpc: vi.fn(),
     };
@@ -80,8 +80,8 @@ describe('createSessionAction', () => {
     }
   });
 
-  it('uses existing session if available', async () => {
-    mockSupabase.auth.getSession.mockResolvedValue({ data: { session: { user: { id: 'existing-user-id' } } } });
+  it('uses existing user if authenticated', async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: 'existing-user-id' } }, error: null });
     mockSupabase.rpc.mockResolvedValue({
       data: {
         id: 'session-123',

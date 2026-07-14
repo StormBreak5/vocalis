@@ -1,4 +1,6 @@
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+GRANT SELECT ON public.sessions TO anon, authenticated;
+GRANT SELECT ON public.participants TO anon, authenticated;
 
 CREATE POLICY sessions_select_public ON sessions
   FOR SELECT TO anon, authenticated USING (status != 'closed');

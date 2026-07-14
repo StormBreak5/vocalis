@@ -1,32 +1,32 @@
 import { createSupabaseServerClient } from '../server';
 import { Participant } from '@/src/domain/participant.types';
 
-export async function getParticipantFromCookie(code: string, cookieValue: string): Promise<Participant | null> {
+export async function getParticipantForSessionCode(code: string): Promise<Participant | null> {
   try {
-    const parsed = JSON.parse(cookieValue);
-    if (!parsed.participantId || !parsed.recoveryToken || parsed.code !== code) {
-      return null;
-    }
-
     const supabase = await createSupabaseServerClient();
-    const { data: recoveredRow, error } = await supabase.rpc('recover_participant', {
-      p_participant_id: parsed.participantId,
-      p_recovery_token: parsed.recoveryToken,
-      p_code: code,
-    });
+    const { data: { user } } = await supabase.auth.getUser();
 
-    if (error || !recoveredRow) {
-      return null;
-    }
+    if (!user) return null;
+
+    // We join with sessions to get the participant for the given session code
+    const { data, error } = await supabase
+      .from('participants')
+      .select('*, sessions!inner(code)')
+      .eq('auth_user_id', user.id)
+      .eq('sessions.code', code)
+      .limit(1)
+      .single();
+
+    if (error || !data) return null;
 
     return {
-      id: recoveredRow.id,
-      sessionId: recoveredRow.session_id,
-      displayName: recoveredRow.display_name,
-      disambiguationIndex: recoveredRow.disambiguation_index,
-      joinedAt: recoveredRow.joined_at,
-      lastSeen: recoveredRow.last_seen,
-      createdAt: recoveredRow.created_at,
+      id: data.id,
+      sessionId: data.session_id,
+      displayName: data.display_name,
+      disambiguationIndex: data.disambiguation_index,
+      joinedAt: data.joined_at,
+      lastSeen: data.last_seen,
+      createdAt: data.created_at,
     };
   } catch {
     return null;

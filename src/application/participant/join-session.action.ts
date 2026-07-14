@@ -5,7 +5,6 @@ import { AppError, AppSuccess } from '../../domain/errors.types';
 import { Participant } from '../../domain/participant.types';
 import { validateSessionCode } from '../../domain/validators/session-code.validator';
 import { validateDisplayName } from '../../domain/validators/display-name.validator';
-import { cookies } from 'next/headers';
 
 export async function joinSessionAction(
   code: string,
@@ -34,49 +33,24 @@ export async function joinSessionAction(
     }
 
     const supabase = await createSupabaseServerClient();
-    const cookieStore = await cookies();
-    const pidCookie = cookieStore.get('vocalis_pid')?.value;
+    
+    // Check if the user already has a session (Host or previously signed in Anonymous user)
+    let { data: { user } } = await supabase.auth.getUser();
 
-    let participantId: string | null = null;
-    let recoveryToken: string | null = null;
+    let isRecovered = false;
 
-    if (pidCookie) {
-      try {
-        const parsed = JSON.parse(pidCookie);
-        if (parsed.code === validCode && parsed.participantId && parsed.recoveryToken) {
-          participantId = parsed.participantId;
-          recoveryToken = parsed.recoveryToken;
-        }
-      } catch {
-        // Ignore parse error
+    if (!user) {
+      // Create a new anonymous session
+      const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+      if (authError) {
+        return { ok: false, code: 'AUTH_FAILED', userMessage: 'Falha na autenticação.' };
       }
+      user = authData.user;
+    } else {
+      isRecovered = true; // They already had a session (either anon from before, or they are the host)
     }
 
-    // Try recovery first
-    if (participantId && recoveryToken) {
-      const { data: recoveredRow, error: recoverError } = await supabase.rpc('recover_participant', {
-        p_participant_id: participantId,
-        p_recovery_token: recoveryToken,
-        p_code: validCode,
-      });
-
-      if (!recoverError && recoveredRow) {
-        const participant: Participant = {
-          id: recoveredRow.id,
-          sessionId: recoveredRow.session_id,
-          displayName: recoveredRow.display_name,
-          disambiguationIndex: recoveredRow.disambiguation_index,
-          joinedAt: recoveredRow.joined_at,
-          lastSeen: recoveredRow.last_seen,
-          createdAt: recoveredRow.created_at,
-        };
-
-        return { ok: true, participant, isRecovered: true };
-      }
-      // If recovery fails, we just proceed to join as new
-    }
-
-    // New join
+    // Call the updated join_session RPC which uses auth.uid()
     const { data, error } = await supabase.rpc('join_session', {
       p_code: validCode,
       p_display_name: validName,
@@ -100,7 +74,9 @@ export async function joinSessionAction(
     }
 
     const row = data.participant;
-    const newRecoveryToken = data.recovery_token;
+    if (!row) {
+      return { ok: false, code: 'UNKNOWN', userMessage: 'Erro inesperado.' };
+    }
 
     const participant: Participant = {
       id: row.id,
@@ -112,22 +88,9 @@ export async function joinSessionAction(
       createdAt: row.created_at,
     };
 
-    // Set cookie
-    const cookieData = JSON.stringify({
-      code: validCode,
-      participantId: participant.id,
-      recoveryToken: newRecoveryToken,
-    });
+    // The old vocalis_pid cookie is completely deprecated. Auth is handled natively by Supabase.
 
-    cookieStore.set('vocalis_pid', cookieData, {
-      path: `/sala/${validCode}`,
-      maxAge: 86400, // 24 hours
-      sameSite: 'strict',
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-    });
-
-    return { ok: true, participant, isRecovered: false };
+    return { ok: true, participant, isRecovered };
   } catch (error) {
     console.error('joinSessionAction error:', error);
     return { ok: false, code: 'UNKNOWN', userMessage: 'Ocorreu um erro inesperado.' };
