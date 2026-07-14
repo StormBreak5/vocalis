@@ -1,10 +1,10 @@
 <!--
   SYNC IMPACT REPORT
   ==================
-  Version Change: [TEMPLATE] → 1.0.0 (initial ratification)
+  Version Change: 1.0.0 → 1.1.0 (amended based on MVP audit)
 
   Modified Principles:
-    - All principles are NEW (first ratification from template)
+    - III. Database-Enforced Integrity (Anti-Spam context and Realtime clarification)
 
   Added Sections:
     - I. Clean Architecture (architecture principle)
@@ -63,9 +63,12 @@ or accessibility-agnostic design would fail the primary audience entirely.
 Every critical business rule MUST be enforced at the database level (PostgreSQL constraints, partial
 unique indexes, RLS policies), not solely in the frontend or API layer.
 
-- Supabase Realtime MUST be used for live data updates; polling (setInterval) is forbidden.
+- Features with shared state simultaneously visible across multiple clients MUST use Supabase Realtime.
+- Polling (setInterval) is STRICTLY FORBIDDEN.
+- A feature may defer Realtime ONLY IF it has no immediate requirement for simultaneous live updates. Any deferral MUST be formally documented in the Complexity Tracking section of the feature's plan.
 - The Anti-Spam rule (one active queue entry per participant per session) MUST be guaranteed by a
   partial unique index on `(session_id, participant_id) WHERE status IN ('pending','preparing','singing')`.
+  - **Scope Note**: This index is mandatory for the future Queue feature. It MUST NOT be preemptively satisfied by creating empty placeholder tables in the Room Access MVP. The Queue feature will not be considered complete without this DB constraint.
 - Row-Level Security (RLS) MUST be enabled on all tables.
 - Supabase errors from constraint violations MUST surface as user-friendly toast messages,
   never raw error strings.
@@ -173,4 +176,4 @@ why a simpler, compliant approach was insufficient.
 
 ---
 
-**Version**: 1.0.0 | **Ratified**: 2026-07-14 | **Last Amended**: 2026-07-14
+**Version**: 1.1.0 | **Ratified**: 2026-07-14 | **Last Amended**: 2026-07-14
