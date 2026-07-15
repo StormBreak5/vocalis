@@ -6,6 +6,24 @@ import { listActiveQueueAction } from '@/src/application/queue/list-active-queue
 import { ActiveQueueEntry, QueueEntry } from '@/src/domain/queue.types';
 import { toast } from 'sonner';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { Database } from '@/src/infrastructure/supabase/database.types';
+
+type QueueRow = Database['public']['Tables']['queue']['Row'];
+
+function mapQueueRow(row: QueueRow, participantName: string): ActiveQueueEntry {
+  return {
+    id: row.id,
+    sessionId: row.session_id,
+    participantId: row.participant_id,
+    songTitle: row.song_title,
+    artist: row.artist,
+    status: row.status as QueueEntry['status'],
+    position: row.position,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    participantName,
+  };
+}
 
 export function useActiveQueue(sessionId: string) {
   const [queue, setQueue] = useState<ActiveQueueEntry[]>([]);
@@ -23,7 +41,7 @@ export function useActiveQueue(sessionId: string) {
         toast.error('Erro ao carregar fila', { description: response.userMessage });
         setIsOffline(true);
       }
-    } catch (error) {
+    } catch {
       setIsOffline(true);
       toast.error('Erro de conexão', { description: 'Você parece estar offline.' });
     } finally {
@@ -39,6 +57,14 @@ export function useActiveQueue(sessionId: string) {
     let channel: RealtimeChannel;
 
     const setupRealtime = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.access_token) {
+        await supabase.realtime.setAuth(session.access_token);
+      } else {
+        await supabase.realtime.setAuth();
+      }
+
       channel = supabase.channel(`queue:${sessionId}`)
         .on(
           'postgres_changes',
@@ -48,9 +74,9 @@ export function useActiveQueue(sessionId: string) {
             table: 'queue',
             filter: `session_id=eq.${sessionId}`,
           },
-          async (payload: { new: any; old: any; eventType: 'INSERT' | 'UPDATE' | 'DELETE' }) => {
-            const newRecord = payload.new as QueueEntry;
-            const oldRecord = payload.old as Partial<QueueEntry>;
+          async (payload) => {
+            const newRecord = payload.new as QueueRow;
+            const oldRecord = payload.old as Partial<QueueRow>;
             const eventType = payload.eventType;
 
             if (eventType === 'INSERT') {
@@ -58,16 +84,12 @@ export function useActiveQueue(sessionId: string) {
               const { data: pData } = await supabase
                 .from('participants')
                 .select('display_name')
-                .eq('id', newRecord.participantId)
+                .eq('id', newRecord.participant_id)
                 .single();
 
               const participantName = pData?.display_name || 'Cantor';
 
-              const entry: ActiveQueueEntry = {
-                ...newRecord,
-                status: newRecord.status as QueueEntry['status'],
-                participantName,
-              };
+              const entry = mapQueueRow(newRecord, participantName);
 
               setQueue((prev) => {
                 const exists = prev.find((item) => item.id === entry.id);
@@ -79,7 +101,11 @@ export function useActiveQueue(sessionId: string) {
               if (['completed', 'cancelled'].includes(newRecord.status)) {
                 setQueue((prev) => prev.filter((item) => item.id !== newRecord.id));
               } else {
-                setQueue((prev) => prev.map((item) => item.id === newRecord.id ? { ...item, ...newRecord } as ActiveQueueEntry : item));
+                setQueue((prev) => prev
+                  .map((item) => item.id === newRecord.id
+                    ? mapQueueRow(newRecord, item.participantName)
+                    : item)
+                  .sort((a, b) => a.position - b.position));
               }
             } else if (eventType === 'DELETE') {
               setQueue((prev) => prev.filter((item) => item.id !== oldRecord.id));

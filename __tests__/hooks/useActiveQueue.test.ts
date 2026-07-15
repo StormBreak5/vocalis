@@ -14,12 +14,18 @@ const mockSubscribe = vi.fn().mockImplementation((cb) => {
 });
 const mockOn = vi.fn().mockReturnValue({ subscribe: mockSubscribe });
 const mockRemoveChannel = vi.fn();
+const mockGetSession = vi.fn().mockResolvedValue({
+  data: { session: { access_token: 'participant-token' } },
+});
+const mockSetRealtimeAuth = vi.fn().mockResolvedValue(undefined);
 const mockChannel = vi.fn().mockReturnValue({ on: mockOn });
 
 vi.mock('@/src/infrastructure/supabase/client', () => ({
   createClient: vi.fn(() => ({
     channel: mockChannel,
     removeChannel: mockRemoveChannel,
+    auth: { getSession: mockGetSession },
+    realtime: { setAuth: mockSetRealtimeAuth },
   })),
 }));
 
@@ -51,6 +57,20 @@ describe('useActiveQueue', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.queue.length).toBe(2);
     expect(result.current.queue[0].songTitle).toBe('Song 1');
+  });
+
+  it('authenticates Realtime with the participant session before subscribing', async () => {
+    renderHook(() => useActiveQueue('session-123'));
+
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    expect(mockGetSession).toHaveBeenCalled();
+    expect(mockSetRealtimeAuth).toHaveBeenCalledWith('participant-token');
+    expect(mockSetRealtimeAuth.mock.invocationCallOrder[0]).toBeLessThan(
+      mockChannel.mock.invocationCallOrder[0],
+    );
   });
 
   it('subscribes to realtime updates', async () => {

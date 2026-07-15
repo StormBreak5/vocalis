@@ -5,14 +5,13 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-const SUPABASE_URL = 'http://127.0.0.1:54321';
-const SUPABASE_SERVICE_ROLE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
+const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 describe('DB RPC: create_queue_entry', () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
   let sessionId: string;
-  let participantTokens: { id: string; email: string; token: string }[] = [];
+  const participantTokens: { id: string; email: string; token: string }[] = [];
 
   beforeAll(async () => {
     // 1. Create a host user
@@ -31,7 +30,7 @@ describe('DB RPC: create_queue_entry', () => {
     // 3. Create a couple of anonymous participants via API
     for (let i = 0; i < 2; i++) {
       const email = `participant_${i}_${Date.now()}@test.com`;
-      const { data: authData } = await supabase.auth.admin.createUser({
+      await supabase.auth.admin.createUser({
         email,
         password: 'password123',
         email_confirm: true,
@@ -91,7 +90,7 @@ describe('DB RPC: create_queue_entry', () => {
       global: { headers: { Authorization: `Bearer ${p1.token}` } }
     });
 
-    const { data, error } = await client.rpc('create_queue_entry', {
+    const { error } = await client.rpc('create_queue_entry', {
       p_session_id: sessionId,
       p_song_title: 'Bohemian Rhapsody',
       p_artist: 'Queen',

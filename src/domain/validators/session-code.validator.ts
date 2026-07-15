@@ -1,6 +1,8 @@
 import { AppError } from '../errors.types';
 
-const ALPHABET = '^[A-HJ-NP-Z2-9]{6}$';
+// I and O are accepted for backward compatibility with rooms generated before migration 014.
+// New rooms continue to exclude ambiguous characters at the database boundary.
+const ALPHABET = '^[A-Z2-9]{6}$';
 
 export function normalizeCode(raw: string): string {
   return String(raw).trim().toUpperCase();

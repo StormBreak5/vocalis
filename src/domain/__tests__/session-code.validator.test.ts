@@ -22,11 +22,14 @@ describe('session-code.validator', () => {
     expect(validateSessionCode('a2b3c4')).toBe('A2B3C4');
   });
 
-  it('validateSessionCode fails on ambiguous or invalid chars (0/O/1/I)', () => {
+  it('accepts legacy generated codes containing I or O', () => {
+    expect(validateSessionCode('AOB3C4')).toBe('AOB3C4');
+    expect(validateSessionCode('AIB3C4')).toBe('AIB3C4');
+  });
+
+  it('rejects digits 0 and 1', () => {
     expect(() => validateSessionCode('A0B3C4')).toThrow();
     expect(() => validateSessionCode('A1B3C4')).toThrow();
-    expect(() => validateSessionCode('AOB3C4')).toThrow();
-    expect(() => validateSessionCode('AIB3C4')).toThrow();
   });
 
   it('validateSessionCode fails on empty string', () => {

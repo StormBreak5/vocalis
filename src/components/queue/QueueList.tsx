@@ -3,8 +3,7 @@
 import { ActiveQueueEntry } from '@/src/domain/queue.types';
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { QueueItem } from './QueueItem';
-import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
-import { Alert, AlertDescription } from '@/src/components/ui/alert';
+import { Loader2, WifiOff } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
 
 interface QueueListProps {

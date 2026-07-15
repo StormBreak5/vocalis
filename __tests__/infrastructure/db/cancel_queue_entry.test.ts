@@ -5,14 +5,14 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
-const SUPABASE_URL = 'http://127.0.0.1:54321';
-const SUPABASE_SERVICE_ROLE = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
+const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
+const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 describe('DB RPC: cancel_queue_entry', () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
   let sessionId: string;
   let hostToken: string;
-  let p1: { id: string; token: string; queueId: string } = { id: '', token: '', queueId: '' };
+  const p1: { id: string; token: string; queueId: string } = { id: '', token: '', queueId: '' };
 
   beforeAll(async () => {
     // 1. Create a host user and session
@@ -31,9 +31,7 @@ describe('DB RPC: cancel_queue_entry', () => {
     await supabase.auth.admin.createUser({ email, password: 'password123', email_confirm: true });
     const { data: loginData } = await supabase.auth.signInWithPassword({ email, password: 'password123' });
     p1.token = loginData.session!.access_token;
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-    
-    const participantClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const participantClient = createClient(SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
       global: { headers: { Authorization: `Bearer ${p1.token}` } }
     });
 
@@ -52,8 +50,7 @@ describe('DB RPC: cancel_queue_entry', () => {
   });
 
   it('allows the owner to cancel a pending song', async () => {
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const client = createClient(SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
       global: { headers: { Authorization: `Bearer ${p1.token}` } }
     });
 
@@ -68,9 +65,8 @@ describe('DB RPC: cancel_queue_entry', () => {
   });
 
   it('rejects cancellation of an already active song', async () => {
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
     // We create another one and force its status to singing
-    const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const client = createClient(SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
       global: { headers: { Authorization: `Bearer ${p1.token}` } }
     });
 
@@ -78,7 +74,7 @@ describe('DB RPC: cancel_queue_entry', () => {
       p_session_id: sessionId, p_song_title: 'Another Song', p_artist: 'Artist'
     });
 
-    const hostClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const hostClient = createClient(SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
       global: { headers: { Authorization: `Bearer ${hostToken}` } }
     });
     const { error: updateError } = await hostClient.from('queue').update({ status: 'singing' }).eq('id', queueData.id);
