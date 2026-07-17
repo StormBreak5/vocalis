@@ -80,11 +80,35 @@ describe('useActiveQueue', () => {
       await new Promise(resolve => setTimeout(resolve, 0));
     });
 
-    expect(mockChannel).toHaveBeenCalledWith('queue:session-123');
+    expect(mockChannel).toHaveBeenCalledWith(
+      expect.stringMatching(/^queue:session-123:/),
+    );
     expect(mockOn).toHaveBeenCalledWith(
       'postgres_changes',
       expect.objectContaining({ event: '*', schema: 'public', table: 'queue' }),
       expect.any(Function)
     );
+  });
+
+  it('does not subscribe after the component is unmounted', async () => {
+    let resolveSession!: (value: {
+      data: { session: { access_token: string } };
+    }) => void;
+
+    mockGetSession.mockReturnValueOnce(new Promise((resolve) => {
+      resolveSession = resolve;
+    }));
+
+    const { unmount } = renderHook(() => useActiveQueue('session-123'));
+    unmount();
+
+    await act(async () => {
+      resolveSession({
+        data: { session: { access_token: 'participant-token' } },
+      });
+      await Promise.resolve();
+    });
+
+    expect(mockChannel).not.toHaveBeenCalled();
   });
 });

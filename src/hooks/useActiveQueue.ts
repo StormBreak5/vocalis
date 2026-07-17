@@ -54,10 +54,13 @@ export function useActiveQueue(sessionId: string) {
     fetchInitialQueue();
 
     const supabase = createClient();
-    let channel: RealtimeChannel;
+    let channel: RealtimeChannel | null = null;
+    let isCancelled = false;
 
     const setupRealtime = async () => {
       const { data: { session } } = await supabase.auth.getSession();
+
+      if (isCancelled) return;
 
       if (session?.access_token) {
         await supabase.realtime.setAuth(session.access_token);
@@ -65,7 +68,13 @@ export function useActiveQueue(sessionId: string) {
         await supabase.realtime.setAuth();
       }
 
-      channel = supabase.channel(`queue:${sessionId}`)
+      if (isCancelled) return;
+
+      // Realtime reuses channels with the same topic. A unique topic prevents a
+      // remount from receiving a channel that is still being removed asynchronously.
+      const subscriptionId = crypto.randomUUID();
+
+      channel = supabase.channel(`queue:${sessionId}:${subscriptionId}`)
         .on(
           'postgres_changes',
           {
@@ -121,11 +130,18 @@ export function useActiveQueue(sessionId: string) {
         });
     };
 
-    setupRealtime();
+    void setupRealtime().catch(() => {
+      if (isCancelled) return;
+      setIsOffline(true);
+      toast.error('Erro de conexão', {
+        description: 'Não foi possível acompanhar as atualizações da fila.',
+      });
+    });
 
     return () => {
+      isCancelled = true;
       if (channel) {
-        supabase.removeChannel(channel);
+        void supabase.removeChannel(channel);
       }
     };
   }, [sessionId, fetchInitialQueue]);
