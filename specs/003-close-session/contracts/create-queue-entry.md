@@ -35,9 +35,13 @@ Depois do lock, aplica validação de título/artista, limites, Microfone Justo 
 
 ## Retorno, erros e idempotência
 
-Retorno é o DTO explícito de nove campos; nunca `RETURNS public.queue`. Erros: `AUTH_REQUIRED`, `SESSION_NOT_FOUND_OR_FORBIDDEN`, `SESSION_PAUSED`, `SESSION_CLOSED`, `PARTICIPANT_NOT_FOUND_OR_FORBIDDEN`, `ACTIVE_SONG_EXISTS`, `QUEUE_FULL`, `INVALID_SONG`, `UNKNOWN`.
+Cada linha do retorno SQL possui nove campos explícitos; a função nunca usa `RETURNS public.queue`. O DTO singular só existe após a normalização de cardinalidade abaixo. Erros: `AUTH_REQUIRED`, `SESSION_NOT_FOUND_OR_FORBIDDEN`, `SESSION_PAUSED`, `SESSION_CLOSED`, `PARTICIPANT_NOT_FOUND_OR_FORBIDDEN`, `ACTIVE_SONG_EXISTS`, `QUEUE_FULL`, `INVALID_SONG`, `UNKNOWN`.
 
 A criação não é idempotente; retry após resposta incerta deve ressincronizar. O índice parcial impede duas músicas ativas.
+
+## Cardinalidade SQL e DTO singular
+
+`RETURNS TABLE` é set-oriented, embora o contrato lógico exija exatamente uma linha de nove campos. O Supabase retorna array. A action passa `data: unknown` e o schema `QueueEntry` a `src/application/shared/expect-single-rpc-row.ts`; zero ou múltiplas linhas geram `RPC_RESULT_CARDINALITY`, linha inválida gera `RPC_RESULT_INVALID`, e somente uma linha válida vira o DTO singular. É proibido cast de array para objeto, `any` ou acesso a `data.campo` antes da normalização.
 
 ## ACL
 
@@ -49,4 +53,4 @@ GRANT EXECUTE ON FUNCTION public.create_queue_entry(uuid,character varying,chara
 
 ## Testes
 
-`003_session_writers.sql` prova DROP/recriação, retorno, pg_proc/ACL, active/paused/closed, Microfone Justo, posição, limites e nenhuma inserção após closed. O harness prova close×create nas duas ordens.
+`003_session_writers.sql` prova DROP/recriação, retorno, pg_proc/ACL, active/paused/closed, Microfone Justo, posição, limites e nenhuma inserção após closed. `src/application/shared/__tests__/expect-single-rpc-row.test.ts` e `src/application/__tests__/closed-session-writers.test.ts` cobrem zero/uma/múltiplas linhas, schema e consumo singular. O harness prova close×create nas duas ordens.

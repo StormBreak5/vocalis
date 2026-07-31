@@ -15,8 +15,8 @@ A baseline histórica é imutável e já contém `closed` e `closed_at`, mas tam
 - Supabase CLI `2.106.0` como devDependency exata.
 - Vitest, React Testing Library, Playwright, pgTAP e Supabase local.
 - `pg` e `@types/pg` como devDependencies para o harness transacional.
-- shadcn/ui AlertDialog, Tailwind CSS e mobile-first.
-- Banco e testes exclusivamente locais durante implementação; produção é proibida.
+- shadcn/ui AlertDialog baseado exclusivamente em Radix (`@radix-ui/react-alert-dialog`), Tailwind CSS e mobile-first.
+- Estado confirmado como pré-produção: não há hospedagem, pipeline de deploy, tag/release ou evidência de tráfego ativo desta versão. Banco e testes permanecem locais ou em ambiente controlado não produtivo até todos os gates passarem.
 
 ## Constitution Check
 
@@ -27,7 +27,7 @@ A baseline histórica é imutável e já contém `closed` e `closed_at`, mas tam
 - TypeScript strict, sem `any`, com Server Components por padrão.
 - Dados de Session, Participant e Queue são preservados.
 
-Não há desvio constitucional planejado.
+Não há desvio constitucional planejado. `components.json` usa o estilo shadcn `new-york`, que seleciona exclusivamente a implementação Radix para esta feature. A confirmação do Host e `SessionClosedDialog` reutilizam `src/components/ui/alert-dialog.tsx` baseado em `@radix-ui/react-alert-dialog`; nenhum componente é regenerado nesta etapa de planejamento.
 
 ## Baseline histórica imutável
 
@@ -88,7 +88,7 @@ A migration usa `BEGIN`/`COMMIT` explícitos e, na mesma transaction:
 4. remove assinaturas cujo retorno será alterado;
 5. recria e endurece todos os writers;
 6. cria `close_session`;
-7. revoga INSERT/UPDATE/DELETE diretos incompatíveis;
+7. executa os REVOKEs explícitos de INSERT, UPDATE e DELETE descritos abaixo;
 8. fixa owners, `search_path=''`, qualification e EXECUTE mínimo;
 9. confirma a ordem global de locks Session → Participant/Queue;
 10. faz COMMIT somente depois de toda a fronteira estar segura.
@@ -113,6 +113,16 @@ Objetos finais da 015:
 
 Todas são `LANGUAGE plpgsql VOLATILE SECURITY DEFINER PARALLEL UNSAFE SET search_path=''`, owner `postgres`, usam referências qualificadas e autorização interna por `auth.uid()`. Após cada criação: REVOKE ALL de PUBLIC/anon/authenticated e GRANT EXECUTE somente a authenticated. Supabase Anonymous Auth utiliza o role authenticated.
 
+A fronteira de DML direto da 015 é exata:
+
+```sql
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.sessions FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.participants FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.queue FROM PUBLIC, anon, authenticated;
+```
+
+Esses REVOKEs não removem SELECT nesse estágio: a leitura continua com os grants/policies históricos até o cutover mínimo da 016. Escritas passam exclusivamente pelas RPCs com EXECUTE authenticated. `close_session`, `update_session_status` e `update_queue_status` exigem Host proprietário; `join_session` e `create_queue_entry` autorizam Participant autenticado, e `cancel_queue_entry` autoriza Participant dono ou Host conforme o contrato. Supabase Anonymous Auth usa o role authenticated; o role anon não autenticado não recebe EXECUTE.
+
 ### Migration 016 — leitura, RLS, Host details e Realtime
 
 Arquivo: `supabase/migrations/20260729101000_016_session_closure_rls_realtime.sql`.
@@ -129,6 +139,25 @@ Também usa uma única transaction. Ela:
 8. solicita schema reload e faz COMMIT.
 
 Ela não altera writers, transições ou `close_session`.
+
+### Entrega única em pré-produção
+
+A inspeção do repositório confirmou ausência de configuração de hospedagem, workflow de deploy, tag/release ou outra evidência concreta de tráfego produtivo desta versão. A branch ativa é `003-close-session`; metadados locais de Supabase vinculados não demonstram aplicação publicada. A decisão única é pré-produção: não existe aplicação antiga atendendo escritas durante este cutover, e esta feature não introduz mecanismo de bloqueio operacional.
+
+A sequência implantável é única:
+
+1. construir e adaptar no branch todos os consumidores e componentes da aplicação, sem publicar;
+2. aplicar a migration 015 no ambiente controlado;
+3. regenerar `src/infrastructure/supabase/database.types.ts` pós-015;
+4. executar a matriz SQL e o harness pós-015;
+5. executar typecheck, Vitest e testes de aplicação/integração dos consumidores;
+6. aplicar a migration 016;
+7. regenerar os tipos finais;
+8. executar RLS, Realtime, integração e E2E completos;
+9. executar lint e build;
+10. somente então autorizar a primeira publicação desta versão.
+
+Falha em qualquer etapa interrompe a sequência. Antes de commit da migration, a transaction reverte integralmente; depois de commit, a correção ocorre por migration corretiva no mesmo ambiente controlado. Nenhuma versão é publicada parcialmente.
 
 Policies legadas removidas:
 
@@ -220,7 +249,46 @@ Nenhuma tarefa prepara a variável para outra tarefa.
 
 Server Components carregam o snapshot inicial. Client Components são limitados ao lifecycle, Realtime, modal, confirmação, conectividade e navegação. `SessionLifecycleProvider` e `useSessionLifecycle` concentram status, resync, epoch, cleanup e `writesAllowed`.
 
-Realtime assina `public.sessions`, evento UPDATE, filtro `id=eq.<sessionId>`, com todos `.on()` registrados antes de `.subscribe()`. RLS é a autoridade. Carga inicial, reconnect, token refresh, `online`, `visibilitychange` e BFCache fazem point-read; não há polling.
+Realtime usa exatamente esta configuração de Postgres Changes:
+
+```typescript
+{
+  event: "UPDATE",
+  schema: "public",
+  table: "sessions",
+  filter: "id=eq.<sessionId>",
+  select: ["id", "code", "status", "closed_at"]
+}
+```
+
+A validação distingue dois tipos conceituais:
+
+```typescript
+type SessionRealtimeRow = {
+  id: string;
+  code: string;
+  status: "active" | "paused" | "closed";
+  closed_at: string | null;
+};
+
+type SessionRealtimeEnvelope = {
+  eventType: "UPDATE";
+  schema: "public";
+  table: "sessions";
+  commit_timestamp: string;
+  new: SessionRealtimeRow;
+  old: Partial<SessionRealtimeRow>;
+  errors: string[];
+};
+```
+
+O schema do envelope aceita os campos válidos do evento Supabase e valida `eventType`, `schema` e `table` pelos literais acima. A validação estrita das quatro colunas aplica-se somente a `payload.new`: ela exige `id`, `code`, `status` e `closed_at` e rejeita `host_id` ou qualquer outra coluna. `payload.old` é um objeto parcial restrito ao mesmo conjunto de colunas. As quatro colunas possuem o grant mínimo da 016. `select` limita a linha, mas não substitui RLS nem o filtro de Session. Todos os callbacks `.on()` são registrados antes de `.subscribe()`. Carga inicial, reconnect, token refresh, `online`, `visibilitychange` e BFCache fazem point-read; não há polling.
+
+### Cardinalidade das RPCs `RETURNS TABLE`
+
+`create_queue_entry`, `close_session`, `update_queue_status`, `update_session_status` e `get_host_session_details` possuem retorno SQL set-oriented e retornam logicamente exatamente uma linha. O Supabase entrega uma coleção de linhas. Antes de qualquer consumidor acessar campos, `src/application/shared/expect-single-rpc-row.ts` recebe `unknown`, exige `Array.isArray(data)` e `length === 1`, valida a única linha com o schema runtime da operação e retorna o DTO singular tipado. Zero ou múltiplas linhas geram `RPC_RESULT_CARDINALITY`; linha inválida gera `RPC_RESULT_INVALID`. Ambos são erros de domínio sanitizados.
+
+É proibido usar `any`, cast de array para objeto, cliente Supabase sem o generic `Database` ou acesso a `data.campo` antes da normalização. `cancel_queue_entry` continua `RETURNS void`; `join_session` continua `RETURNS jsonb`. `src/application/shared/__tests__/expect-single-rpc-row.test.ts` cobre zero, uma, múltiplas linhas e schema inválido.
 
 ### Geração de tipos no PowerShell 5.1
 
@@ -237,13 +305,13 @@ if ($bytes.Length -ge 2 -and (($bytes[0] -eq 255 -and $bytes[1] -eq 254) -or ($b
 if ($bytes.Length -ge 3 -and $bytes[0] -eq 239 -and $bytes[1] -eq 187 -and $bytes[2] -eq 191) { throw 'BOM UTF-8 proibido.' }
 ```
 
-Depois validar os primeiros bytes sem BOM/UTF-16, confirmar as funções esperadas em `Database['public']['Functions']` e executar `npm run typecheck`. Redirecionamento simples é proibido.
+Depois de cada geração, validar os primeiros bytes sem BOM/UTF-16 e confirmar somente as funções já aplicadas em `Database['public']['Functions']`. Redirecionamento simples é proibido.
 
-Após 015 aparecem todos os writers e `close_session`. Após 016 aparece `get_host_session_details` e o schema final.
+Os consumidores dos writers e `close_session`, com seus testes, são construídos antes da aplicação controlada da 015, sem publicação nem typecheck global contra tipos históricos. Após 015, a geração passa a expor esses objetos; então rodam matriz SQL/harness e somente depois `npm run typecheck`, Vitest e integração. Após 016 aparece `get_host_session_details` e o schema final; os tipos finais precedem a implementação/compilação das queries e testes Realtime dependentes da 016.
 
 ## Gates executáveis
 
-Para cada migration: criar arquivo → aplicar localmente → verificar history → regenerar/validar tipos → executar gate → avançar.
+Ordem global: adaptar a aplicação sem publicar → criar/aplicar 015 → verificar history/tipos → matriz SQL/harness → typecheck/Vitest/integração → criar/aplicar 016 → verificar history/tipos finais → RLS/Realtime/E2E → lint/build → autorizar publicação.
 
 ### Gate pós-015
 
@@ -256,7 +324,9 @@ Executa:
 - `003_session_privileges.sql` em seu ramo pós-015, que executa somente asserções já válidas de DML/EXECUTE e terminalidade;
 - harness Vitest de corridas.
 
-Prova writers, close, idempotência, reabertura bloqueada, primeiro `closed_at` imutável, DML direto bloqueado e dados preservados. O mesmo arquivo de privilégios usa `to_regprocedure('public.get_host_session_details(uuid)')` como sentinela e SQL dinâmico somente no ramo final, evitando resolução parse-time da RPC ausente após 015; habilita após 016 as asserções de SELECT/table/column privileges sem antecipar expectativas da migration seguinte. A 016 não pode ser aplicada se este gate falhar.
+Prova writers, close, idempotência, reabertura bloqueada, primeiro `closed_at` imutável, DML direto bloqueado e dados preservados. O mesmo arquivo de privilégios usa `to_regprocedure('public.get_host_session_details(uuid)')` como sentinela e SQL dinâmico somente no ramo final, evitando resolução parse-time da RPC ausente após 015; habilita após 016 as asserções de SELECT/table/column privileges sem antecipar expectativas da migration seguinte.
+
+Os consumidores e seus testes são construídos antes da aplicação da 015, mas não são publicados nem submetidos ao typecheck global enquanto os tipos históricos ainda estiverem vigentes. Após a 015: gerar tipos, executar primeiro a matriz SQL/harness e então executar typecheck, Vitest e integração dos consumidores. A 016 não pode ser aplicada se qualquer validação falhar.
 
 ### Gate pós-016
 
@@ -299,7 +369,8 @@ Matriz obrigatória:
 - Botão Host destructive, 48 px, disabled offline/uncertain/closing/closed.
 - Sem fila offline e sem sucesso otimista.
 - Resposta incerta mantém writes bloqueados e exige resync antes de retry.
-- `SessionClosedDialog` é não dispensável, sem X, Escape ou outside close, com foco e única ação.
+- A confirmação e `SessionClosedDialog` usam somente o AlertDialog shadcn/Radix. Ao cancelar a confirmação, nenhuma RPC é chamada, status/closed_at permanecem inalterados, fila/participantes continuam interativos, o diálogo fecha e o foco retorna a “Encerrar sala”. O modal final é não dispensável, sem X, Escape ou outside close, com foco e única ação.
+- `src/components/__tests__/CloseSessionButton.test.tsx` e `e2e/close-session-host.spec.ts` provam explicitamente a desistência: abrir, cancelar, zero chamadas RPC/close_session, status inalterado, `closed_at` null, fila/participantes interativos, fechamento e retorno de foco.
 - Ação final usa cleanup room-scoped e `router.replace('/')` sem redirecionamento automático.
 - Host: remove canal, estado/caches de Session e Queue daquela sala; preserva Auth Supabase normal, cookies e dados de outras salas.
 - Participant: remove canal, `sessionId`, `participantId`, snapshot/cache de Session/Queue daquela sala; preserva Supabase Anonymous Auth, cookies e outras salas/abas, sem `signOut`.
@@ -332,7 +403,10 @@ Matriz obrigatória:
 - create/cancel têm DROP exato antes da mudança de retorno.
 - Sete contratos SQL possuem assinatura única.
 - Trigger possui decisão idêntica em todos os artefatos.
-- Gate 015 antecede 016; gate 016 cobre RLS/grants/Realtime.
+- A aplicação é adaptada sem publicação; gate SQL/harness e typecheck/testes pós-015 antecedem a 016; tipos finais e gate RLS/Realtime/E2E antecedem lint/build e a primeira publicação.
+- A assinatura Realtime possui `select` explícito; o envelope Supabase e a linha `new` são validados separadamente, e `host_id` nunca é aceito em `new`.
+- Toda RPC `RETURNS TABLE` é normalizada como coleção com cardinalidade exatamente um antes de virar DTO singular.
+- AlertDialogs são exclusivamente shadcn/Radix, sem desvio constitucional.
 - Tipos são escritos em UTF-8 sem BOM no PowerShell 5.1.
 - Nenhuma implementação é realizada nesta etapa.
 

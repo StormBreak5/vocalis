@@ -20,8 +20,11 @@ Esta função é criada na migration 016 junto do cutover de leitura. Owner `pos
 
 ## DTO e exposição
 
-Retorna exatamente sete campos. Nunca retorna `host_id`, auth data, tokens, Participant, Queue, row type completo ou futuras colunas.
+Cada linha SQL contém exatamente sete campos. O DTO singular só existe após a normalização de cardinalidade abaixo. A operação nunca retorna `host_id`, auth data, tokens, Participant, Queue, row type completo ou futuras colunas.
 
+## Cardinalidade SQL e DTO singular
+
+O SQL `RETURNS TABLE` é set-oriented, mas a operação lógica retorna exatamente uma linha. O Supabase entrega array; `src/application/shared/expect-single-rpc-row.ts` recebe `unknown`, exige tamanho um e valida a linha pelo schema `HostSessionDetails`. Zero/múltiplas linhas produzem `RPC_RESULT_CARDINALITY`; linha inválida produz `RPC_RESULT_INVALID`. A query não usa `any`, cast array→objeto ou acesso prévio a campos.
 ## ACL e erros
 
 ```sql
@@ -34,4 +37,4 @@ Erros: `AUTH_REQUIRED`, `SESSION_NOT_FOUND_OR_FORBIDDEN`, `UNKNOWN`. Leitura de 
 
 ## Testes
 
-`003_sessions_rls.sql` e `003_session_privileges.sql` cobrem owner nos três estados, negativas, DTO, pg_proc/ACL, ausência de overload e impossibilidade de obter detalhes completos por SELECT direto.
+`003_sessions_rls.sql` e `003_session_privileges.sql` cobrem owner nos três estados, negativas, retorno SQL, pg_proc/ACL, ausência de overload e impossibilidade de obter detalhes completos por SELECT direto. `src/application/shared/__tests__/expect-single-rpc-row.test.ts` e `src/infrastructure/__tests__/session.queries.test.ts` cobrem cardinalidade/schema e DTO singular.

@@ -95,10 +95,20 @@ A transaction 015:
 - executa DROP exato das RPCs com retorno incompatível;
 - recria join/create/cancel;
 - cria update_queue_status, update_session_status e close_session;
-- revoga DML direto;
+- executa os REVOKEs explicitos de INSERT, UPDATE e DELETE para as tres tabelas e papeis web;
 - aplica owner/search_path/ACL;
 - confirma locks Session-first.
 
+
+Os REVOKEs da 015 sao exatamente:
+
+```sql
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.sessions FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.participants FROM PUBLIC, anon, authenticated;
+REVOKE INSERT, UPDATE, DELETE ON TABLE public.queue FROM PUBLIC, anon, authenticated;
+```
+
+Eles bloqueiam DML direto, sem remover SELECT nesse estagio. Toda escrita passa por RPC com EXECUTE minimo para `authenticated` e autorizacao por `auth.uid()`: close/update-session/update-queue sao exclusivas do Host; join/create atendem usuario autenticado, inclusive Anonymous Auth; cancel atende Participant dono ou Host. `anon` nao autenticado nao recebe EXECUTE. O SELECT minimo e finalizado apenas pela 016.
 Assinaturas removidas antes da recriação:
 
 ```sql
@@ -147,6 +157,40 @@ Sessions não possui SELECT de tabela para papéis web. Somente `id`, `code`, `s
 
 `get_host_session_details(uuid)` retorna sete campos (`id`, `code`, `status`, `closed_at`, `created_at`, `max_participants`, `max_queue_entries`) e nunca `host_id` ou a linha inteira.
 
+### Envelope e linha Session Realtime
+
+```typescript
+type SessionRealtimeRow = {
+  id: string;
+  code: string;
+  status: "active" | "paused" | "closed";
+  closed_at: string | null;
+};
+
+type SessionRealtimeEnvelope = {
+  eventType: "UPDATE";
+  schema: "public";
+  table: "sessions";
+  commit_timestamp: string;
+  new: SessionRealtimeRow;
+  old: Partial<SessionRealtimeRow>;
+  errors: string[];
+};
+```
+
+A assinatura usa UPDATE, schema `public`, tabela `sessions`, filtro `id=eq.<sessionId>` e `select: ["id", "code", "status", "closed_at"]`. O schema do envelope valida os metadados literais e aceita os campos validos do envelope Supabase. Somente `new` recebe validacao estrita: exige exatamente as quatro colunas e rejeita `host_id` ou outra coluna. `old` pode ser parcial, mas somente com chaves da mesma linha. As quatro colunas possuem grant minimo; RLS decide a linha, enquanto filtro e `select` apenas reduzem o evento.
+### Cardinalidade dos resultados RPC
+
+| RPC | Retorno SQL | Cardinalidade lógica | DTO da aplicação |
+|---|---|---|---|
+| create_queue_entry | TABLE de 9 colunas | exatamente 1 linha | QueueEntry sanitizada |
+| close_session | TABLE de 4 colunas | exatamente 1 linha | CloseSessionResult |
+| update_queue_status | TABLE de 4 colunas | exatamente 1 linha | UpdateQueueStatusResult |
+| update_session_status | TABLE de 3 colunas | exatamente 1 linha | UpdateSessionStatusResult |
+| get_host_session_details | TABLE de 7 colunas | exatamente 1 linha | HostSessionDetails |
+
+O cliente Supabase entrega cada `RETURNS TABLE` como coleção. `src/application/shared/expect-single-rpc-row.ts` recebe `unknown`, exige array com exatamente uma linha, valida essa linha pelo schema runtime específico e só então devolve o DTO singular. Zero/múltiplas linhas ou linha inválida são falhas de contrato seguras. `cancel_queue_entry` permanece void; `join_session` permanece jsonb.
+
 ## Invariantes de segurança
 
 - auth vem somente de `auth.uid()`;
@@ -177,6 +221,6 @@ Sessions não possui SELECT de tabela para papéis web. Somente `id`, `code`, `s
 
 ## Tipos gerados
 
-Após 015, Database deve conter status/closed_at coerentes, join/create/cancel, update_queue_status, update_session_status e close_session. Após 016, deve também conter get_host_session_details e o schema final.
+Antes da aplicacao da 015, os consumidores de join/create/cancel/update_queue_status/update_session_status/close_session e seus testes sao construidos a partir dos contratos, sem publicacao e sem typecheck global contra tipos historicos. Depois de aplicar 015, `Database` deve conter status/closed_at coerentes e essas RPCs; a geracao pos-015 em `src/infrastructure/supabase/database.types.ts` usa `System.IO.File.WriteAllText` com UTF-8 sem BOM. A matriz SQL e o harness rodam antes do typecheck/Vitest/integracao desses consumidores.
 
-Ambas as gerações usam `src/infrastructure/supabase/database.types.ts`, escrita UTF-8 sem BOM por `System.IO.File.WriteAllText`, seguida de validação de bytes e typecheck. O arquivo gerado nunca é editado manualmente.
+Depois de aplicar 016, a geracao final deve tambem conter `get_host_session_details` e o schema final. Somente entao queries e testes TypeScript dependentes da 016 sao compilados. A validacao de encoding, assinaturas e generic `Database` ocorre nas duas geracoes; o arquivo gerado nunca e editado manualmente.

@@ -26,6 +26,9 @@ Owner `postgres`; Queue determina session_id; cliente não envia Session ou Host
 
 Closed sempre retorna `SESSION_CLOSED`, sem mutação/evento.
 
+## Cardinalidade SQL e DTO singular
+
+O SQL `RETURNS TABLE` é set-oriented; o resultado lógico é exatamente uma linha `{id,status,updated_at,changed}`. O Supabase retorna array. A action usa `src/application/shared/expect-single-rpc-row.ts` com `data: unknown` e schema específico antes de acessar campos. Zero/múltiplas linhas geram `RPC_RESULT_CARDINALITY`; linha inválida gera `RPC_RESULT_INVALID`. Não há `any` nem cast array→objeto.
 ## ACL e erros
 
 ```sql
@@ -38,4 +41,4 @@ Qualification total; sem EXECUTE para role anon. Erros: `AUTH_REQUIRED`, `QUEUE_
 
 ## Testes
 
-`003_session_writers.sql` cobre assinatura, DTO, pg_proc/ACL, autorização, transições, idempotência e closed. O harness cobre close×update_queue_status nas duas ordens.
+`003_session_writers.sql` cobre assinatura, DTO, pg_proc/ACL, autorização, transições, idempotência e closed. `src/application/shared/__tests__/expect-single-rpc-row.test.ts` e `src/application/__tests__/session-status-writers.test.ts` cobrem cardinalidade/schema e DTO singular. O harness cobre close×update_queue_status nas duas ordens.
