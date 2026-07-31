@@ -1,29 +1,20 @@
-# Contract: Get / Resynchronize Session Status
+# Contract: Get and Resynchronize Session Status
 
-**Operations**: `getSessionStatusByCode`, `getSessionStatusById`  
-**Planned paths**: `src/infrastructure/supabase/queries/session.queries.ts`, `src/application/session/get-session-status.action.ts`
+## Operation
 
-This one contract serves initial load and every resync. There is no separate polling or duplicate resync RPC.
+Application operations `getSessionStatus(sessionId)` and `resyncSessionStatus(sessionId)` reuse one infrastructure query; no second RPC exists.
 
-## Inputs
+Input is exclusively `sessionId: uuid`. Identity comes from the current Supabase JWT. No code/host parameter alternative is accepted.
 
-- Initial route: normalized 6-character `code`.
-- Connected lifecycle: `sessionId` UUID.
+## Projection and authorization
 
-## Identity and authorization
+Direct Session SELECT exposes only `id`, `code`, `status`, `closed_at`. RLS authorizes only Host ownership or existing Participant membership; open code lookup occurs only inside authenticated `join_session`. External/cross-session direct SELECT returns the sanitized not-found/forbidden result in every status, even with a known UUID or code.
 
-Uses the current Supabase JWT and the final split policies:
+Host details beyond the projection are obtained only through `public.get_host_session_details(uuid)`. Participant/Queue rows are not fetched when the confirmed status is closed.
 
-- `sessions_select_open` permits the existing minimal active/paused lookup for `anon` and `authenticated`;
-- `sessions_select_owned_or_member` permits an authenticated owning Host or linked participant to read the same minimal row after closure through secured private helpers.
+## Validation and result
 
-RLS authorizes rows and column ACLs authorize only `id,code,status,closed_at`. The Realtime `id=eq.<sessionId>` filter never authorizes access.
-
-- Active/paused rows retain the existing minimal room-lookup visibility.
-- Closed rows are visible only to the owning Host or an already linked participant.
-- Knowing code/UUID alone never reveals a closed row.
-
-## Projection
+Runtime validation requires status active|paused|closed and coherent timestamp. Result:
 
 ```typescript
 type SessionStatusSnapshot = {
@@ -34,45 +25,12 @@ type SessionStatusSnapshot = {
 };
 ```
 
-Select only `id,code,status,closed_at`. Do not select `*`.
-
-## Validation
-
-- Input code/UUID must be valid.
-- Status must match the domain union.
-- Closed requires a valid `closedAt`.
-- Active/paused require `closedAt=null`.
-- Invalid external data returns a safe error and keeps writes blocked.
-
-## Success behavior
-
-- Initial closed snapshot causes immediate final modal.
-- Resync closed causes terminal lifecycle state.
-- Active/paused after successful resync may restore writes subject to role/status rules.
-
-## Errors
-
-| Code | Meaning | UI behavior |
-|---|---|---|
-| `SESSION_NOT_FOUND` | Missing or not visible | Existing route/join behavior; no data leak |
-| `UNAUTHORIZED` | No valid identity for a protected closed read | Keep writes blocked |
-| `INVALID_SESSION_STATE` | Payload violates status/timestamp invariant | Keep blocked; report generic error |
-| `OFFLINE` | Point read unavailable | Preserve snapshot read-only |
-| `UNKNOWN` | Unexpected failure | Preserve safe blocked state |
+Invalid/incoherent payload produces fail-closed state and sanitized error; no `any` or blind cast.
 
 ## Resync triggers
 
-- first `SUBSCRIBED`;
-- reconnect/re-subscribe;
-- `online`;
-- `visibilitychange` visible / `pageshow`;
-- `TOKEN_REFRESHED`;
-- uncertain close response;
-- invalid/missed Realtime payload.
+Initial load, direct URL, refresh, first/re-SUBSCRIBED, reconnect, TOKEN_REFRESHED, online, visible, pageshow/BFCache, invalid payload and uncertain mutation response. No interval or polling.
 
-No timer or polling.
+## Offline
 
-## Data exposure
-
-Participant never receives `host_id`, limits, full participants, or queue through this contract.
-
+Offline snapshot is read-only and cannot establish active authorization. Writes remain blocked until a fresh successful point read confirms active/paused.

@@ -1,92 +1,38 @@
-# Contract: Close Session
+# Contract: close_session
 
-**Operation**: `closeSessionAction` → `public.close_session`  
-**Planned path**: `src/application/session/close-session.action.ts`
+## Definição SQL única
 
-## Input
-
-```typescript
-type CloseSessionInput = {
-  sessionId: string; // valid UUID
-};
+```sql
+public.close_session(p_session_id uuid)
+RETURNS TABLE (session_id uuid, status text, closed_at timestamptz, changed boolean)
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER PARALLEL UNSAFE
+SET search_path = ''
 ```
 
-RPC input: `p_session_id uuid`.
+Owner `postgres`; sem overload por code, host_id ou claims.
 
-The client never sends `host_id`, room code, participant id, or authorization claims.
+## Identidade, autorização e operação
 
-## Identity and authorization
+Identidade somente por `auth.uid()`. Null retorna `AUTH_REQUIRED`. A função seleciona e bloqueia `public.sessions` onde `id=p_session_id AND host_id=auth.uid()`. Missing, outro Host, Participant e usuário sem vínculo retornam o mesmo `SESSION_NOT_FOUND_OR_FORBIDDEN`.
 
-- Server Action obtains the cookie-backed Supabase session.
-- RPC uses `auth.uid()`.
-- RPC selects `sessions.id = p_session_id AND sessions.host_id = auth.uid()` while taking `FOR UPDATE`.
-- Missing and non-owned sessions produce the same sanitized domain error.
-- Participants and other Hosts cannot close.
+Active/paused atualiza status para closed e define `closed_at=clock_timestamp()` uma única vez. Closed retorna a linha original sem UPDATE. Participant e Queue nunca são tocados.
 
-## Database operation
+## Idempotência e concorrência
 
-1. Fail `AUTH_REQUIRED` when `auth.uid()` is null.
-2. Lock the owned Session row.
-3. If not found, fail `SESSION_NOT_FOUND_OR_FORBIDDEN`.
-4. If active/paused, set `status=closed` and the authoritative first `closed_at`.
-5. If already closed, perform no update.
-6. Return sanitized DTO.
+Primeira chamada: `changed=true`. Retry: `changed=false`, mesmo `closed_at`, nenhum evento adicional. Session é o primeiro e único lock. Corridas com writers são ordenadas pelo mesmo lock; close-first bloqueia a escrita, writer-first preserva o commit anterior.
 
-## Locking
+## ACL
 
-- Session is the only row locked by close.
-- It is always the first lock.
-- Lock is held until transaction completion.
-- No participant/queue lock or mutation.
-
-## Success
-
-```typescript
-type CloseSessionResult = {
-  ok: true;
-  session: {
-    id: string;
-    status: 'closed';
-    closedAt: string;
-  };
-  changed: boolean;
-};
+```sql
+ALTER FUNCTION public.close_session(uuid) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.close_session(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.close_session(uuid) TO authenticated;
 ```
 
-- First close: `changed=true`.
-- Retry/already closed: `changed=false`, same `closedAt`.
+## Erros, Realtime e offline
 
-## Errors
+`AUTH_REQUIRED`, `SESSION_NOT_FOUND_OR_FORBIDDEN`, `UNKNOWN`. Closed não é erro para esta função. changed=true produz um UPDATE Realtime após commit; changed=false não produz. Offline não invoca RPC; resposta incerta bloqueia writes e exige resync antes de retry.
 
-| Code | Client message | Notes |
-|---|---|---|
-| `AUTH_REQUIRED` | “Você precisa estar autenticado.” | No JWT |
-| `SESSION_NOT_FOUND_OR_FORBIDDEN` | “Sala não encontrada ou acesso não permitido.” | Same response for missing/non-owner |
-| `OFFLINE` | “Conecte-se à internet para encerrar a sala.” | Client precondition; RPC not called |
-| `UNKNOWN` | “Não foi possível encerrar a sala. Tente novamente.” | Sanitized unexpected failure |
+## Testes
 
-`SESSION_CLOSED` is not an error for this operation.
-
-## Security-definer controls
-
-- `SECURITY DEFINER` justified by revoked direct UPDATE.
-- `SET search_path=''`.
-- Fully qualified objects.
-- Revoke EXECUTE from `PUBLIC` and `anon`.
-- Grant EXECUTE only to `authenticated`.
-- Ownership validation inside the function.
-- No sensitive fields returned.
-
-## Realtime effect
-
-- First close emits one `sessions` UPDATE.
-- Idempotent retry emits no UPDATE.
-- Client never waits exclusively for Realtime; the returned DTO or resync can establish closed.
-
-## Offline/uncertain response
-
-- Closure is never queued or optimistic.
-- If the request may have committed but response is lost, lifecycle becomes `uncertain`.
-- Status is resynchronized before retry.
-- Retry is safe and preserves the first timestamp.
-
+`003_close_session.sql` cobre active/paused, negativas, DTO, timestamp, idempotência, dados preservados, pg_proc e ACL. `003_session_concurrency.sql` e o harness cobrem close×close e um close + 19 retries sequenciais.

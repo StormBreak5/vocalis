@@ -1,101 +1,52 @@
-# Contract Change: Create Queue Entry
+# Contract: create_queue_entry
 
-**Application operation**: `createQueueEntryAction`  
-**Definitive database operation**: `public.create_queue_entry(p_session_id uuid, p_song_title varchar, p_artist varchar)`
+## Remoção da assinatura histórica
 
-## Exact SQL contract
+A baseline possui `(uuid, character varying, character varying) RETURNS public.queue`. Como o retorno muda, a migration 015 executa primeiro:
+
+```sql
+DROP FUNCTION IF EXISTS public.create_queue_entry(uuid, character varying, character varying);
+```
+
+## Definição SQL única
 
 ```sql
 public.create_queue_entry(
   p_session_id uuid,
-  p_song_title varchar,
-  p_artist varchar
+  p_song_title character varying,
+  p_artist character varying
+) RETURNS TABLE (
+  id uuid, session_id uuid, participant_id uuid,
+  song_title character varying, artist character varying,
+  status character varying, position integer,
+  created_at timestamptz, updated_at timestamptz
 )
-RETURNS TABLE (
-  id uuid,
-  session_id uuid,
-  participant_id uuid,
-  song_title varchar,
-  artist varchar,
-  status varchar,
-  position integer,
-  created_at timestamptz,
-  updated_at timestamptz
-)
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER PARALLEL UNSAFE
+SET search_path = ''
 ```
 
-The explicit nine-column result preserves the existing QueueEntry consumer without returning `public.queue` as an expanding whole-row type.
+Owner `postgres`; objetos qualificados; sem overload por host_id.
 
-## Input and identity
+## Identidade, autorização e lock
 
-- `p_session_id`: target Session UUID.
-- `p_song_title` and `p_artist`: trimmed, non-empty, maximum 100 characters.
-- Identity comes only from qualified `auth.uid()`.
-- The caller must be a linked `public.participants` row for the locked Session whose `auth_user_id` equals the JWT identity. A Host may request a song only through its own linked Participant row; ownership alone is not a substitute for `participant_id`.
-- The client never supplies Participant or Host identity as authorization evidence.
+Identidade somente por `auth.uid()`; null gera `AUTH_REQUIRED`. A função bloqueia `public.sessions` por `p_session_id` antes de consultar Participant/Queue. Missing gera `SESSION_NOT_FOUND_OR_FORBIDDEN`; closed gera `SESSION_CLOSED`; paused gera `SESSION_PAUSED`. Active exige Participant vinculado ao JWT. O Host não recebe identidade Participant implícita.
 
-## Locking, authorization, and status
+Depois do lock, aplica validação de título/artista, limites, Microfone Justo e posição. Ordem: Session → Participant/Queue. Nenhuma Queue row é criada após closed.
 
-Global order is Session → Participant/Queue:
+## Retorno, erros e idempotência
 
-1. validate auth, UUID, title, and artist;
-2. select and lock `public.sessions` by `p_session_id FOR UPDATE` before resolving the Participant or inspecting Queue rows;
-3. missing Session returns `SESSION_NOT_FOUND`;
-4. `closed` returns `SESSION_CLOSED` before every Participant/Queue lookup or mutation;
-5. `paused` preserves `SESSION_PAUSED` and inserts nothing;
-6. in `active`, resolve the caller's Participant, enforce capacity and the Microfone Justo partial unique index, calculate the next position under the Session lock, insert one pending row, and return the sanitized DTO.
+Retorno é o DTO explícito de nove campos; nunca `RETURNS public.queue`. Erros: `AUTH_REQUIRED`, `SESSION_NOT_FOUND_OR_FORBIDDEN`, `SESSION_PAUSED`, `SESSION_CLOSED`, `PARTICIPANT_NOT_FOUND_OR_FORBIDDEN`, `ACTIVE_SONG_EXISTS`, `QUEUE_FULL`, `INVALID_SONG`, `UNKNOWN`.
 
-The partial unique index remains the final anti-spam authority. The explicit precheck exists only for a friendlier error.
+A criação não é idempotente; retry após resposta incerta deve ressincronizar. O índice parcial impede duas músicas ativas.
 
-## Security mode and privileges
-
-- `LANGUAGE plpgsql VOLATILE SECURITY DEFINER PARALLEL UNSAFE`.
-- SECURITY DEFINER is required because direct Queue INSERT is revoked.
-- Owner: `postgres`.
-- Fixed `SET search_path = ''` and fully qualified `auth.uid()`, `public.sessions`, `public.participants`, and `public.queue`.
-- No dynamic SQL.
+## ACL
 
 ```sql
-ALTER FUNCTION public.create_queue_entry(uuid,varchar,varchar) OWNER TO postgres;
-REVOKE ALL ON FUNCTION public.create_queue_entry(uuid,varchar,varchar)
-  FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.create_queue_entry(uuid,varchar,varchar)
-  TO authenticated;
+ALTER FUNCTION public.create_queue_entry(uuid,character varying,character varying) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.create_queue_entry(uuid,character varying,character varying) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.create_queue_entry(uuid,character varying,character varying) TO authenticated;
 ```
 
-Supabase Anonymous Auth callers execute as `authenticated`; the unauthenticated database role `anon` has no EXECUTE.
+## Testes
 
-## Domain errors
-
-| Code | Meaning |
-|---|---|
-| `AUTH_REQUIRED` | Missing authenticated JWT |
-| `SESSION_NOT_FOUND` | Session does not exist |
-| `SESSION_CLOSED` | “Esta sala já foi encerrada.”; no Queue insert |
-| `SESSION_PAUSED` | Existing paused behavior; no Queue insert |
-| `PARTICIPANT_NOT_FOUND_OR_FORBIDDEN` | Caller is not a linked Participant |
-| `ACTIVE_SONG_EXISTS` | Microfone Justo violation |
-| `SESSION_QUEUE_FULL` | Existing queue limit reached |
-| `VALIDATION_ERROR` | Invalid title/artist/UUID |
-| `UNKNOWN` | Sanitized unexpected failure |
-
-## Realtime, idempotency, and concurrency
-
-A successful insert emits one Queue INSERT after commit. Rejected operations emit nothing. The operation is not retry-idempotent by request id; response uncertainty must resync before retry, while the Microfone Justo index prevents a second active request.
-
-Close-first makes the waiting create revalidate `closed` and insert nothing. Create-first preserves the committed row and close follows. Both orders use Session-first locks and the deterministic three-connection harness.
-
-## Tests
-
-- pg_proc exact signature/return columns, owner, SECURITY DEFINER, VOLATILE, PARALLEL UNSAFE, and `search_path=''`;
-- ACL authenticated-only; PUBLIC/anon negative calls;
-- active success and exact DTO;
-- paused, closed, missing Session, missing/cross-session Participant, invalid input, queue limit, and null auth;
-- Microfone Justo and deterministic position remain valid;
-- no Queue row/event after closed;
-- close-first/create-first final assertions and no deadlock;
-- direct Queue INSERT remains blocked.
-
-## Offline
-
-No offline queue or optimistic insert. `writesAllowed=false` prevents invocation while Session state is unconfirmed.
+`003_session_writers.sql` prova DROP/recriação, retorno, pg_proc/ACL, active/paused/closed, Microfone Justo, posição, limites e nenhuma inserção após closed. O harness prova close×create nas duas ordens.
