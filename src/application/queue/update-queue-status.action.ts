@@ -1,35 +1,19 @@
 'use server';
+import { z } from 'zod';
+import { createSupabaseServerClient } from '@/src/infrastructure/supabase/server';
+import type { AppError, AppSuccess } from '@/src/domain/errors.types';
+import { updateQueueStatusRpcRowSchema, type QueueStatus, type UpdateQueueStatusResult } from '@/src/domain/queue.types';
+import { expectSingleRpcRow, RpcResultContractError } from '@/src/application/shared/expect-single-rpc-row';
+import { mapSessionError } from '@/src/application/session/session-error.mapper';
 
-import { createSupabaseServerClient } from '../../infrastructure/supabase/server';
-import { AppError, AppSuccess } from '../../domain/errors.types';
-import { QueueEntry } from '../../domain/queue.types';
-
-export async function updateQueueStatusAction(
-  queueId: string,
-  newStatus: QueueEntry['status']
-): Promise<AppSuccess<void> | AppError> {
-  try {
-    const supabase = await createSupabaseServerClient();
-    
-    // Check if the user is authenticated (they must be the Host to update the queue via RLS)
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      return { ok: false, code: 'UNAUTHORIZED', userMessage: 'Você não tem permissão para realizar esta ação.' };
-    }
-
-    const { error } = await supabase
-      .from('queue')
-      .update({ status: newStatus })
-      .eq('id', queueId);
-
-    if (error) {
-      console.error('updateQueueStatusAction Supabase error:', error);
-      return { ok: false, code: 'UNKNOWN', userMessage: 'Erro ao atualizar o status da música.' };
-    }
-
-    return { ok: true };
-  } catch (error) {
-    console.error('updateQueueStatusAction unexpected error:', error);
-    return { ok: false, code: 'UNKNOWN', userMessage: 'Ocorreu um erro inesperado.' };
-  }
+export async function updateQueueStatusAction(queueId:string,newStatus:QueueStatus):Promise<AppSuccess<{result:UpdateQueueStatusResult}>|AppError>{
+  if(!z.string().uuid().safeParse(queueId).success) return mapSessionError('QUEUE_ENTRY_NOT_FOUND_OR_FORBIDDEN');
+  try{
+    const supabase=await createSupabaseServerClient(); const {data:{user}}=await supabase.auth.getUser();
+    if(!user) return mapSessionError('AUTH_REQUIRED');
+    const {data,error}=await supabase.rpc('update_queue_status',{p_queue_id:queueId,p_new_status:newStatus});
+    if(error) return mapSessionError(error);
+    const row=expectSingleRpcRow(data,updateQueueStatusRpcRowSchema);
+    return {ok:true,result:{id:row.id,status:row.status,updatedAt:row.updated_at,changed:row.changed}};
+  }catch(error){return error instanceof RpcResultContractError?error.appError:mapSessionError(error)}
 }

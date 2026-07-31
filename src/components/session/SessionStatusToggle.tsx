@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { Button } from '@/src/components/ui/button';
 import { updateSessionStatusAction } from '@/src/application/session/update-session-status.action';
 import { toast } from 'sonner';
@@ -19,7 +20,14 @@ export function SessionStatusToggle({ sessionId, initialStatus }: SessionStatusT
   const isPaused = initialStatus === 'paused';
   const newStatus = isPaused ? 'active' : 'paused';
 
+  let writesAllowed = true;
+  try {
+    const lifecycle = useSessionLifecycleContext();
+    writesAllowed = lifecycle.writesAllowed;
+  } catch {}
+
   const handleToggle = async () => {
+    if (!writesAllowed) return;
     setIsUpdating(true);
     try {
       const response = await updateSessionStatusAction(sessionId, newStatus);
@@ -40,8 +48,8 @@ export function SessionStatusToggle({ sessionId, initialStatus }: SessionStatusT
     <Button 
       variant={isPaused ? "default" : "secondary"} 
       onClick={handleToggle} 
-      disabled={isUpdating || initialStatus === 'closed'}
-      className="w-full sm:w-auto"
+      disabled={isUpdating || initialStatus === 'closed' || !writesAllowed}
+      className="w-full sm:w-auto min-h-[48px]"
     >
       {isUpdating ? (
         <Loader2 className="w-4 h-4 mr-2 animate-spin" />

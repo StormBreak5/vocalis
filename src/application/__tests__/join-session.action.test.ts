@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+﻿import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { joinSessionAction } from '../participant/join-session.action';
 import { createSupabaseServerClient } from '../../infrastructure/supabase/server';
 
@@ -47,14 +47,13 @@ describe('joinSessionAction', () => {
     mockSupabase.rpc.mockResolvedValue({
       data: {
         participant: {
-          id: 'p-123',
-          session_id: 's-123',
+          id: '22222222-2222-4222-8222-222222222222',
+          session_id: '11111111-1111-4111-8111-111111111111',
           display_name: 'John',
           disambiguation_index: 1,
           joined_at: 'now',
           last_seen: 'now',
-          is_online: true,
-          created_at: 'now',
+                    created_at: 'now',
         }
       },
       error: null,
@@ -87,14 +86,13 @@ describe('joinSessionAction', () => {
     mockSupabase.rpc.mockResolvedValue({
       data: {
         participant: {
-          id: 'p-123',
-          session_id: 's-123',
+          id: '22222222-2222-4222-8222-222222222222',
+          session_id: '11111111-1111-4111-8111-111111111111',
           display_name: 'John',
           disambiguation_index: 1,
           joined_at: 'now',
           last_seen: 'now',
-          is_online: true,
-          created_at: 'now',
+                    created_at: 'now',
         }
       },
       error: null,

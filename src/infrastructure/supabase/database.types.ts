@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -7,31 +7,6 @@
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       participants: {
@@ -164,25 +139,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cancel_queue_entry: {
-        Args: { p_queue_id: string }
+      cancel_queue_entry: { Args: { p_queue_id: string }; Returns: undefined }
+      close_session: {
+        Args: { p_session_id: string }
         Returns: {
-          artist: string
-          created_at: string
-          id: string
-          participant_id: string
-          position: number
+          changed: boolean
+          closed_at: string
           session_id: string
-          song_title: string
           status: string
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "queue"
-          isOneToOne: true
-          isSetofReturn: false
-        }
+        }[]
       }
       create_queue_entry: {
         Args: { p_artist: string; p_session_id: string; p_song_title: string }
@@ -196,13 +161,7 @@ export type Database = {
           song_title: string
           status: string
           updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "queue"
-          isOneToOne: true
-          isSetofReturn: false
-        }
+        }[]
       }
       create_session: {
         Args: { p_host_id: string }
@@ -223,18 +182,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      join_session:
-        | { Args: { p_code: string; p_display_name: string }; Returns: Json }
-        | {
-            Args: { p_code: string; p_display_name: string }
-            Returns: Database["public"]["CompositeTypes"]["join_session_result"]
-            SetofOptions: {
-              from: "*"
-              to: "join_session_result"
-              isOneToOne: true
-              isSetofReturn: false
-            }
-          }
+      get_host_session_details: {
+        Args: { p_session_id: string }
+        Returns: {
+          closed_at: string
+          code: string
+          created_at: string
+          id: string
+          max_participants: number
+          max_queue_entries: number
+          status: string
+        }[]
+      }
+      join_session: {
+        Args: { p_code: string; p_display_name: string }
+        Returns: Json
+      }
       recover_participant: {
         Args: {
           p_code: string
@@ -257,6 +220,23 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_queue_status: {
+        Args: { p_new_status: string; p_queue_id: string }
+        Returns: {
+          changed: boolean
+          id: string
+          status: string
+          updated_at: string
+        }[]
+      }
+      update_session_status: {
+        Args: { p_new_status: string; p_session_id: string }
+        Returns: {
+          changed: boolean
+          id: string
+          status: string
+        }[]
       }
     }
     Enums: {
@@ -389,9 +369,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

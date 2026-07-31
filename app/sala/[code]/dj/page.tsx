@@ -3,7 +3,9 @@ import { getParticipantsBySessionId } from '@/src/infrastructure/supabase/querie
 import { createSupabaseServerClient } from '@/src/infrastructure/supabase/server';
 import { redirect } from 'next/navigation';
 import { SessionCodeDisplay } from '@/src/components/session/SessionCodeDisplay';
-import { SessionStatusToggle } from '@/src/components/session/SessionStatusToggle';
+import { CloseSessionButton } from '@/src/components/session/CloseSessionButton';
+import { SessionLifecycleProvider } from '@/src/components/session/SessionLifecycleProvider';
+import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
 import { QueueList } from '@/src/components/queue/QueueList';
 import { ParticipantsList } from '@/src/components/participant/ParticipantsList';
 
@@ -16,13 +18,15 @@ export default async function HostDashboardPage({
   
   const session = await getSessionByCode(code);
 
-  if (!session || session.status === 'closed') {
+  if (!session) {
     return (
       <div className="flex-1 flex items-center justify-center p-6 text-center text-muted-foreground">
-        <h2>Esta sessão foi encerrada.</h2>
+        <h2>Esta sessão não existe.</h2>
       </div>
     );
   }
+
+  const isClosed = session.status === 'closed';
 
   const supabase = await createSupabaseServerClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -31,26 +35,33 @@ export default async function HostDashboardPage({
     redirect(`/sala/${code}`);
   }
 
-  const participants = await getParticipantsBySessionId(session.id);
+  const participants = isClosed ? [] : await getParticipantsBySessionId(session.id);
 
   return (
-    <main className="flex-1 flex flex-col p-6 w-full max-w-lg mx-auto mt-12">
-      <header className="mb-12">
-        <h1 className="text-3xl font-black text-center tracking-tight mb-2">Painel do DJ</h1>
-        <p className="text-center text-muted-foreground">Controle a fila e as músicas da sala.</p>
-      </header>
-      
-      <SessionCodeDisplay code={session.code} />
-      
-      <div className="mt-8 flex justify-center">
-        <SessionStatusToggle sessionId={session.id} initialStatus={session.status} />
-      </div>
+    <SessionLifecycleProvider 
+      sessionId={session.id} 
+      initialSnapshot={{ id: session.id, code: session.code, status: session.status, closedAt: session.closedAt }}
+    >
+      <main className="flex-1 flex flex-col p-6 w-full max-w-lg mx-auto mt-12">
+        <header className="mb-12">
+          <h1 className="text-3xl font-black text-center tracking-tight mb-2">Painel do DJ</h1>
+          <p className="text-center text-muted-foreground">Controle a fila e as músicas da sala.</p>
+        </header>
+        
+        <SessionCodeDisplay code={session.code} />
+        
+        <div className="mt-8 flex justify-center w-full max-w-sm mx-auto">
+          <CloseSessionButton />
+        </div>
 
-      <section className="mt-12">
-        <QueueList sessionId={session.id} isHost={true} />
-      </section>
+        <section className="mt-12">
+          <QueueList sessionId={session.id} isHost={true} />
+        </section>
 
-      <ParticipantsList sessionId={session.id} initialParticipants={participants} />
-    </main>
+        <ParticipantsList sessionId={session.id} initialParticipants={participants} />
+        
+        <SessionClosedDialog />
+      </main>
+    </SessionLifecycleProvider>
   );
 }

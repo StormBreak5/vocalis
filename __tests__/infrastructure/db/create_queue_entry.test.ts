@@ -8,7 +8,7 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-describe('DB RPC: create_queue_entry', () => {
+describe.skipIf(process.env.RUN_SUPABASE_INTEGRATION !== 'true')('DB RPC: create_queue_entry', () => {
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
   let sessionId: string;
   const participantTokens: { id: string; email: string; token: string }[] = [];

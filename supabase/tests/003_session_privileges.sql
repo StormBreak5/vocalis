@@ -1,0 +1,18 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(13);
+SELECT ok(NOT has_table_privilege('anon','public.sessions','INSERT') AND NOT has_table_privilege('authenticated','public.sessions','INSERT'),'sessions INSERT revogado');
+SELECT ok(NOT has_table_privilege('anon','public.sessions','UPDATE') AND NOT has_table_privilege('authenticated','public.sessions','UPDATE'),'sessions UPDATE revogado');
+SELECT ok(NOT has_table_privilege('anon','public.sessions','DELETE') AND NOT has_table_privilege('authenticated','public.sessions','DELETE'),'sessions DELETE revogado');
+SELECT ok(NOT has_table_privilege('authenticated','public.participants','INSERT,UPDATE,DELETE'),'participants DML revogado');
+SELECT ok(NOT has_table_privilege('authenticated','public.queue','INSERT,UPDATE,DELETE'),'queue DML revogado');
+SELECT ok(has_function_privilege('authenticated','public.join_session(text,text)','EXECUTE') AND NOT has_function_privilege('anon','public.join_session(text,text)','EXECUTE'),'join ACL');
+SELECT ok(has_function_privilege('authenticated','public.create_queue_entry(uuid,character varying,character varying)','EXECUTE') AND NOT has_function_privilege('anon','public.create_queue_entry(uuid,character varying,character varying)','EXECUTE'),'create ACL');
+SELECT ok(has_function_privilege('authenticated','public.cancel_queue_entry(uuid)','EXECUTE') AND NOT has_function_privilege('anon','public.cancel_queue_entry(uuid)','EXECUTE'),'cancel ACL');
+SELECT ok(has_function_privilege('authenticated','public.update_queue_status(uuid,text)','EXECUTE'),'update queue ACL');
+SELECT ok(has_function_privilege('authenticated','public.update_session_status(uuid,text)','EXECUTE'),'update session ACL');
+SELECT ok(has_function_privilege('authenticated','public.close_session(uuid)','EXECUTE'),'close ACL');
+SELECT ok(NOT has_schema_privilege('authenticated','private','CREATE') AND NOT has_schema_privilege('anon','private','CREATE'),'private sem CREATE web');
+SELECT ok(CASE WHEN to_regprocedure('public.get_host_session_details(uuid)') IS NULL THEN NOT has_schema_privilege('authenticated','private','USAGE') ELSE has_schema_privilege('authenticated','private','USAGE') END,'ACL private coerente com estágio');
+SELECT * FROM finish();
+ROLLBACK;

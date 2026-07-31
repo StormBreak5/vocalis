@@ -5,6 +5,7 @@ import { Badge } from '@/src/components/ui/badge';
 import { cn } from '@/src/lib/utils';
 import { Music, User } from 'lucide-react';
 import { Button } from '@/src/components/ui/button';
+import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { updateQueueStatusAction } from '@/src/application/queue/update-queue-status.action';
 import { cancelQueueEntryAction } from '@/src/application/queue/cancel-queue-entry.action';
 import { toast } from 'sonner';
@@ -20,7 +21,14 @@ export function QueueItem({ entry, isCurrentUser, onCancel, isHost = false }: Qu
   const isSinging = entry.status === 'singing';
   const isPreparing = entry.status === 'preparing';
 
+  let writesAllowed = true;
+  try {
+    const lifecycle = useSessionLifecycleContext();
+    writesAllowed = lifecycle.writesAllowed;
+  } catch {}
+
   const handleStatusChange = async (newStatus: ActiveQueueEntry['status']) => {
+    if (!writesAllowed) return;
     try {
       const result = await updateQueueStatusAction(entry.id, newStatus);
       if (!result.ok) {
@@ -32,6 +40,7 @@ export function QueueItem({ entry, isCurrentUser, onCancel, isHost = false }: Qu
   };
 
   const handleCancel = async () => {
+    if (!writesAllowed) return;
     try {
       const result = await cancelQueueEntryAction(entry.id);
       if (!result.ok) {
@@ -85,30 +94,30 @@ export function QueueItem({ entry, isCurrentUser, onCancel, isHost = false }: Qu
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center space-x-2 mt-3 sm:mt-0">
         {isCurrentUser && entry.status === 'pending' && (
-          <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleCancel()}>
+          <Button size="sm" variant="ghost" disabled={!writesAllowed} className="min-h-[48px] text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleCancel()}>
             Cancelar
           </Button>
         )}
-        {isHost && (
-          <div className="flex items-center space-x-2">
+        {isHost && writesAllowed && (
+          <div className="flex flex-wrap items-center gap-2 mt-3 sm:mt-0">
             {entry.status === 'pending' && (
-              <Button size="sm" variant="outline" onClick={() => handleStatusChange('preparing')}>
+              <Button size="sm" variant="outline" className="min-h-[48px]" onClick={() => handleStatusChange('preparing')}>
                 Chamar
               </Button>
             )}
             {entry.status === 'preparing' && (
-              <Button size="sm" onClick={() => handleStatusChange('singing')}>
+              <Button size="sm" className="min-h-[48px]" onClick={() => handleStatusChange('singing')}>
                 Play
               </Button>
             )}
             {entry.status === 'singing' && (
-              <Button size="sm" variant="default" onClick={() => handleStatusChange('completed')}>
+              <Button size="sm" variant="default" className="min-h-[48px]" onClick={() => handleStatusChange('completed')}>
                 Finalizar
               </Button>
             )}
-            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleStatusChange('cancelled')}>
+            <Button size="sm" variant="ghost" className="min-h-[48px] text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleStatusChange('cancelled')}>
               Pular
             </Button>
           </div>

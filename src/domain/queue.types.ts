@@ -24,3 +24,12 @@ export const requestSongSchema = z.object({
 });
 
 export type RequestSongInput = z.infer<typeof requestSongSchema>;
+
+export const queueEntryRpcRowSchema = z.strictObject({
+  id:z.string().uuid(), session_id:z.string().uuid(), participant_id:z.string().uuid(), song_title:z.string(), artist:z.string(),
+  status:z.enum(['pending','preparing','singing','completed','cancelled']), position:z.number().int(), created_at:z.string(), updated_at:z.string(),
+});
+export const updateQueueStatusRpcRowSchema = z.strictObject({
+  id:z.string().uuid(), status:z.enum(['pending','preparing','singing','completed','cancelled']), updated_at:z.string(), changed:z.boolean(),
+});
+export type UpdateQueueStatusResult = { id:string; status:QueueStatus; updatedAt:string; changed:boolean };

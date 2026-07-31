@@ -2,9 +2,9 @@
 
 ## Operation
 
-Application operations `getSessionStatus(sessionId)` and `resyncSessionStatus(sessionId)` reuse one infrastructure query; no second RPC exists.
+The shared application query is `src/application/session/get-session-status.ts`. It exports `getSessionStatus(sessionId)`; there is no separate database query or second RPC for resynchronization. Every resync caller invokes this same function.
 
-Input is exclusively `sessionId: uuid`. Identity comes from the current Supabase JWT. No code/host parameter alternative is accepted.
+Input is exclusively `sessionId: uuid`. Identity comes from the current Supabase JWT. No code/host parameter alternative is accepted. `getSessionStatus` uses the typed Supabase adapter and requests only `id`, `code`, `status` and `closed_at`.
 
 ## Projection and authorization
 
@@ -78,7 +78,7 @@ Invalid or incoherent data produces fail-closed state and a sanitized error.
 
 ## Resync triggers
 
-Initial load, direct URL, refresh, first/re-SUBSCRIBED, reconnect, TOKEN_REFRESHED, online, visible, pageshow/BFCache, invalid payload and uncertain mutation response. No interval or polling.
+Initial load, direct URL, refresh, first/re-SUBSCRIBED, reconnect, `CHANNEL_ERROR`, `TIMED_OUT`, `TOKEN_REFRESHED`, online, return from a suspended tab (`visibilitychange` or pageshow/BFCache), invalid payload and an uncertain `close_session` result all invoke `getSessionStatus(sessionId)`. No interval, polling or alternate status-query implementation exists.
 
 ## Offline
 

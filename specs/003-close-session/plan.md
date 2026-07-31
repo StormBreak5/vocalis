@@ -27,7 +27,7 @@ A baseline histórica é imutável e já contém `closed` e `closed_at`, mas tam
 - TypeScript strict, sem `any`, com Server Components por padrão.
 - Dados de Session, Participant e Queue são preservados.
 
-Não há desvio constitucional planejado. `components.json` usa o estilo shadcn `new-york`, que seleciona exclusivamente a implementação Radix para esta feature. A confirmação do Host e `SessionClosedDialog` reutilizam `src/components/ui/alert-dialog.tsx` baseado em `@radix-ui/react-alert-dialog`; nenhum componente é regenerado nesta etapa de planejamento.
+Não há desvio constitucional planejado para o código novo desta feature. Componentes legados do projeto podem continuar usando `@base-ui/react`; migrá-los globalmente está fora do escopo. O valor `style: new-york` de `components.json` não determina nem prova a base de primitivas do projeto. `src/components/session/CloseSessionButton.tsx`, sua confirmação e `src/components/session/SessionClosedDialog.tsx` devem importar diretamente `@radix-ui/react-alert-dialog` e não podem importar `@base-ui/react` nem `src/components/ui/button.tsx`, que depende de Base UI. Triggers e actions visuais desses novos componentes usam `button` HTML semântico estilizado com Tailwind/CVA, preservando foco, teclado e touch target de 48 px. Nenhum componente legado é migrado ou regenerado.
 
 ## Baseline histórica imutável
 
@@ -249,6 +249,8 @@ Nenhuma tarefa prepara a variável para outra tarefa.
 
 Server Components carregam o snapshot inicial. Client Components são limitados ao lifecycle, Realtime, modal, confirmação, conectividade e navegação. `SessionLifecycleProvider` e `useSessionLifecycle` concentram status, resync, epoch, cleanup e `writesAllowed`.
 
+A consulta compartilhada é `src/application/session/get-session-status.ts`. Ela exporta `getSessionStatus(sessionId)` e executa a projeção mínima autorizada `id, code, status, closed_at` por meio do adapter Supabase tipado. Não existe uma segunda implementação de resync: carregamento inicial, reconnect, `CHANNEL_ERROR`, `TIMED_OUT`, retorno de aba suspensa/`visibilitychange` e resultado incerto de `close_session` chamam a mesma `getSessionStatus(sessionId)`. Até a consulta confirmar active/paused, o lifecycle permanece fail-closed e impede escritas.
+
 Realtime usa exatamente esta configuração de Postgres Changes:
 
 ```typescript
@@ -369,7 +371,7 @@ Matriz obrigatória:
 - Botão Host destructive, 48 px, disabled offline/uncertain/closing/closed.
 - Sem fila offline e sem sucesso otimista.
 - Resposta incerta mantém writes bloqueados e exige resync antes de retry.
-- A confirmação e `SessionClosedDialog` usam somente o AlertDialog shadcn/Radix. Ao cancelar a confirmação, nenhuma RPC é chamada, status/closed_at permanecem inalterados, fila/participantes continuam interativos, o diálogo fecha e o foco retorna a “Encerrar sala”. O modal final é não dispensável, sem X, Escape ou outside close, com foco e única ação.
+- `CloseSessionButton`, a confirmação e `SessionClosedDialog` importam diretamente `@radix-ui/react-alert-dialog`; não importam `@base-ui/react` nem `src/components/ui/button.tsx`. Triggers/actions são `button` HTML semântico com Tailwind/CVA. Ao cancelar a confirmação, nenhuma RPC é chamada, status/closed_at permanecem inalterados, fila/participantes continuam interativos, o diálogo fecha e o foco retorna a “Encerrar sala”. O modal final é não dispensável, sem X, Escape ou outside close, com foco e única ação.
 - `src/components/__tests__/CloseSessionButton.test.tsx` e `e2e/close-session-host.spec.ts` provam explicitamente a desistência: abrir, cancelar, zero chamadas RPC/close_session, status inalterado, `closed_at` null, fila/participantes interativos, fechamento e retorno de foco.
 - Ação final usa cleanup room-scoped e `router.replace('/')` sem redirecionamento automático.
 - Host: remove canal, estado/caches de Session e Queue daquela sala; preserva Auth Supabase normal, cookies e dados de outras salas.
@@ -406,7 +408,7 @@ Matriz obrigatória:
 - A aplicação é adaptada sem publicação; gate SQL/harness e typecheck/testes pós-015 antecedem a 016; tipos finais e gate RLS/Realtime/E2E antecedem lint/build e a primeira publicação.
 - A assinatura Realtime possui `select` explícito; o envelope Supabase e a linha `new` são validados separadamente, e `host_id` nunca é aceito em `new`.
 - Toda RPC `RETURNS TABLE` é normalizada como coleção com cardinalidade exatamente um antes de virar DTO singular.
-- AlertDialogs são exclusivamente shadcn/Radix, sem desvio constitucional.
+- Os novos diálogos importam Radix diretamente, usam botões HTML semânticos e possuem teste que rejeita imports de `@base-ui/react` e `src/components/ui/button.tsx`; componentes legados ficam fora do escopo.
 - Tipos são escritos em UTF-8 sem BOM no PowerShell 5.1.
 - Nenhuma implementação é realizada nesta etapa.
 

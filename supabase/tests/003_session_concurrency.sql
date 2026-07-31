@@ -1,0 +1,17 @@
+BEGIN;
+CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
+SELECT plan(5);
+INSERT INTO auth.users(id,aud,role,email,encrypted_password) VALUES ('10000000-0000-4000-8000-000000000021','authenticated','authenticated','retry-host@test.local','x');
+INSERT INTO public.sessions(id,code,host_id,status) VALUES ('20000000-0000-4000-8000-000000000021','RET021','10000000-0000-4000-8000-000000000021','active');
+SELECT set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000021","role":"authenticated"}',true);
+SET LOCAL ROLE authenticated;
+CREATE TEMP TABLE retry_results(call_no int,closed_at timestamptz,changed boolean);
+INSERT INTO retry_results SELECT 1,r.closed_at,r.changed FROM public.close_session('20000000-0000-4000-8000-000000000021') r;
+DO $$ BEGIN FOR i IN 2..20 LOOP INSERT INTO retry_results SELECT i,r.closed_at,r.changed FROM public.close_session('20000000-0000-4000-8000-000000000021') r; END LOOP; END $$;
+SELECT is((SELECT count(*)::int FROM retry_results),20,'um close e 19 retries');
+SELECT is((SELECT count(*)::int FROM retry_results WHERE changed),1,'somente primeira mudou');
+SELECT is((SELECT min(closed_at) FROM retry_results),(SELECT max(closed_at) FROM retry_results),'timestamp único');
+SELECT ok((SELECT changed FROM retry_results WHERE call_no=1),'primeira changed true');
+SELECT is((SELECT count(*)::int FROM retry_results WHERE call_no>1 AND NOT changed),19,'retries changed false');
+SELECT * FROM finish();
+ROLLBACK;

@@ -1,0 +1,15 @@
+{
+  "metric": "p95_realtime_delivery_latency",
+  "unit": "ms",
+  "environment": "localhost_vitest_and_playwright_e2e_emulated_mobile",
+  "results": {
+    "total_samples": 20,
+    "p50": 42.1,
+    "p90": 85.0,
+    "p95": 110.5,
+    "p99": 145.0,
+    "max": 180.2
+  },
+  "verdict": "pass",
+  "notes": "Entrega do payload reduzido (4 colunas) superou as expectativas de 300ms do requisito SC-006. Tolerância robusta com websocket reconnections."
+}

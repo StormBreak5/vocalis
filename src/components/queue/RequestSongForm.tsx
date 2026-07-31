@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
 import { Loader2 } from 'lucide-react';
+import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 
 interface RequestSongFormProps {
   sessionId: string;
@@ -18,6 +19,13 @@ interface RequestSongFormProps {
 
 export function RequestSongForm({ sessionId, hasActiveSong = false, isOffline = false }: RequestSongFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  let writesAllowed = true;
+  try {
+    const lifecycle = useSessionLifecycleContext();
+    writesAllowed = lifecycle.writesAllowed;
+  } catch {
+    // Se usado fora do provider num cenário E2E restrito
+  }
 
   const form = useForm<RequestSongInput>({
     resolver: zodResolver(requestSongSchema),
@@ -28,7 +36,7 @@ export function RequestSongForm({ sessionId, hasActiveSong = false, isOffline = 
   });
 
   const onSubmit = async (data: RequestSongInput) => {
-    if (hasActiveSong || isOffline) return;
+    if (hasActiveSong || isOffline || !writesAllowed) return;
 
     setIsSubmitting(true);
     
@@ -54,7 +62,7 @@ export function RequestSongForm({ sessionId, hasActiveSong = false, isOffline = 
     }
   };
 
-  const isDisabled = hasActiveSong || isOffline || isSubmitting;
+  const isDisabled = hasActiveSong || isOffline || isSubmitting || !writesAllowed;
 
   return (
     <div className="bg-card p-6 rounded-xl border shadow-sm">
@@ -69,6 +77,12 @@ export function RequestSongForm({ sessionId, hasActiveSong = false, isOffline = 
       {isOffline && (
         <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-md text-sm border border-destructive/20">
           📶 Sem conexão. Reconecte para pedir música.
+        </div>
+      )}
+
+      {!writesAllowed && (
+        <div className="mb-4 p-3 bg-muted text-muted-foreground rounded-md text-sm border">
+          🔒 Esta sessão foi encerrada, não é possível fazer pedidos.
         </div>
       )}
 

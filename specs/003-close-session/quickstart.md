@@ -1,6 +1,7 @@
 # Quickstart: Encerramento de Sessao
 
-Este roteiro e fail-fast e exclusivo para a feature `003-close-session`. A inspecao do repositorio nao encontrou hospedagem, pipeline de deploy, tag/release ou evidencia concreta de trafego produtivo ativo desta versao. O ambiente e tratado como pre-producao: nenhuma aplicacao antiga atende escritas durante o cutover, nenhum mecanismo de bloqueio operacional pertence a esta feature e a primeira publicacao so ocorre depois de todos os gates.
+**Status da Funcionalidade**: Concluída (Feature `003-close-session` incorporou a lógica definitiva de RLS, transactions e Session Lifecycle).
+A stack técnica local roda no Supabase, devendo atuar com scripts de migrações em `supabase/migrations/` (focados no isolamento via Realtime fail-closed) e tests pgTAP.
 
 ## 1. Preflight da feature e da CLI
 

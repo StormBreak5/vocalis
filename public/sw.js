@@ -51,9 +51,10 @@ self.addEventListener('fetch', (event) => {
   // Ignorar HMR e recursos internos de dev
   if (url.pathname.includes('/_next/webpack-hmr') || url.pathname.includes('/_next/webpack')) return;
 
-  // 3. Não armazenar chamadas dinâmicas/API/Supabase/Server Actions
+  // 3. Não armazenar chamadas dinâmicas/API/Supabase/Server Actions e RSC privados
   if (
     url.pathname.startsWith('/api/') || 
+    url.pathname.startsWith('/sala/') || 
     url.origin.includes('supabase.co') ||
     request.headers.has('Next-Action') // Server Actions
   ) {
