@@ -1,8 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
-import { SessionLifecycleProvider } from '@/src/components/session/SessionLifecycleProvider';
 import fs from 'fs';
 import path from 'path';
 

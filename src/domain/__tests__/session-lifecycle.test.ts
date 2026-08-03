@@ -12,6 +12,6 @@ describe('Session Realtime envelope', () => {
     [{...envelope,schema:'private'},'schema'],
     [{...envelope,table:'participants'},'table'],
     [{...envelope,eventType:'INSERT'},'eventType'],
-  ])('rejeita payload inválido %s', (value, _label) => expect(() => parseSessionRealtimeEnvelope(value)).toThrow());
+  ])('rejeita payload inválido %s', (value) => expect(() => parseSessionRealtimeEnvelope(value)).toThrow());
   it('não rejeita metadados válidos adicionais do envelope', () => expect(parseSessionRealtimeEnvelope({...envelope, latency:12}).eventType).toBe('UPDATE'));
 });
