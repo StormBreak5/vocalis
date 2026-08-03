@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { closeSessionAction } from '@/src/application/session/close-session.action';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 type CloseState = 'idle' | 'loading' | 'error' | 'uncertain';
 
 export function CloseSessionButton() {
-  const { sessionId } = useSessionLifecycleContext();
+  const { sessionId, snapshot, dispatch } = useSessionLifecycleContext();
   const { isOnline } = useOnlineStatus();
   const router = useRouter();
 
@@ -29,6 +29,15 @@ export function CloseSessionButton() {
     try {
       const result = await closeSessionAction(sessionId);
       if (result.ok) {
+        dispatch({
+          type: 'SESSION_UPDATED',
+          snapshot: {
+            id: result.result.sessionId,
+            code: snapshot?.code ?? '',
+            status: result.result.status,
+            closedAt: result.result.closedAt,
+          },
+        });
         setOpen(false);
         setState('idle');
         router.refresh();

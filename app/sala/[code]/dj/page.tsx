@@ -1,6 +1,5 @@
-import { getSessionByCode } from '@/src/infrastructure/supabase/queries/session.queries';
+import { getHostSessionDetails, getSessionStatusRowByCode } from '@/src/infrastructure/supabase/queries/session.queries';
 import { getParticipantsBySessionId } from '@/src/infrastructure/supabase/queries/participant.queries';
-import { createSupabaseServerClient } from '@/src/infrastructure/supabase/server';
 import { redirect } from 'next/navigation';
 import { SessionCodeDisplay } from '@/src/components/session/SessionCodeDisplay';
 import { CloseSessionButton } from '@/src/components/session/CloseSessionButton';
@@ -16,25 +15,18 @@ export default async function HostDashboardPage({
 }) {
   const { code } = await params;
   
-  const session = await getSessionByCode(code);
+  const sessionStatus = await getSessionStatusRowByCode(code);
 
-  if (!session) {
-    return (
-      <div className="flex-1 flex items-center justify-center p-6 text-center text-muted-foreground">
-        <h2>Esta sessão não existe.</h2>
-      </div>
-    );
-  }
-
-  const isClosed = session.status === 'closed';
-
-  const supabase = await createSupabaseServerClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-  if (authError || !user || user.id !== session.hostId) {
+  if (!sessionStatus) {
     redirect(`/sala/${code}`);
   }
 
+  const session = await getHostSessionDetails(sessionStatus.id);
+  if (!session) {
+    redirect(`/sala/${code}`);
+  }
+
+  const isClosed = session.status === 'closed';
   const participants = isClosed ? [] : await getParticipantsBySessionId(session.id);
 
   return (

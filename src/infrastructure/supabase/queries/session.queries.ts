@@ -36,6 +36,18 @@ export async function getSessionByCode(code: string): Promise<Session | null> {
 
 export type SessionStatusRow = Pick<Database['public']['Tables']['sessions']['Row'], 'id' | 'code' | 'status' | 'closed_at'>;
 
+export async function getSessionStatusRowByCode(code: string): Promise<SessionStatusRow | null> {
+  const supabase = await createSupabaseServerClient();
+  const normalizedCode = code.trim().toUpperCase();
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('id,code,status,closed_at')
+    .eq('code', normalizedCode)
+    .maybeSingle();
+  if (error) return null;
+  return data;
+}
+
 export async function getSessionStatusRowById(sessionId: string): Promise<SessionStatusRow | null> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from('sessions').select('id,code,status,closed_at').eq('id', sessionId).maybeSingle();

@@ -1,4 +1,4 @@
-import { getSessionByCode } from '@/src/infrastructure/supabase/queries/session.queries';
+import { getSessionStatus } from '@/src/application/session/get-session-status';
 import { getParticipantForSessionCode } from '@/src/infrastructure/supabase/queries/participant.queries';
 import { JoinForm } from '@/src/components/participant/JoinForm';
 import { ParticipantView } from '@/src/components/participant/ParticipantView';
@@ -18,20 +18,37 @@ export default async function GuestRoomPage({
   const { code } = await params;
   const uppercaseCode = code.toUpperCase();
 
-  const session = await getSessionByCode(uppercaseCode);
+  const participant = await getParticipantForSessionCode(uppercaseCode);
+  const statusResult = participant ? await getSessionStatus(participant.sessionId) : null;
+  const session = statusResult?.ok ? statusResult.snapshot : null;
+
+  if (participant && !session) {
+    return (
+      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+        <h1 className="text-2xl font-bold mb-2">Sala indisponível</h1>
+        <p className="text-muted-foreground">Não foi possível carregar esta sala. Tente novamente.</p>
+      </main>
+    );
+  }
 
   if (!session) {
     return (
-      <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-        <h1 className="text-2xl font-bold mb-2">Sala não encontrada</h1>
-        <p className="text-muted-foreground">Verifique se o código foi digitado corretamente.</p>
+      <main className="flex-1 flex flex-col p-6 w-full max-w-lg mx-auto">
+        <header className="flex flex-col items-center text-center space-y-4 mb-10 mt-6">
+          <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+            <Mic2 className="w-8 h-8 text-primary" />
+          </div>
+          <h1 className="text-3xl font-black tracking-tight">Entrar na Sala</h1>
+          <p className="text-muted-foreground">Digite o código exibido pelo DJ.</p>
+        </header>
+        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+          <JoinForm initialCode={uppercaseCode} />
+        </div>
       </main>
     );
   }
 
   const isClosed = session.status === 'closed';
-  const participant = isClosed ? null : await getParticipantForSessionCode(uppercaseCode);
-
   return (
     <SessionLifecycleProvider 
       sessionId={session.id} 
@@ -46,7 +63,7 @@ export default async function GuestRoomPage({
         </header>
 
         <Suspense fallback={<ParticipantSkeleton />}>
-          {participant ? (
+          {participant && !isClosed ? (
             <div className="space-y-6 flex-1 flex flex-col">
               <ParticipantView 
                 participant={{ ...participant, isCurrentUser: true }} 

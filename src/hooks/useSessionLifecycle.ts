@@ -4,7 +4,6 @@ import { createClient } from '@/src/infrastructure/supabase/client';
 import { 
   initialSessionLifecycleState, 
   sessionLifecycleReducer, 
-  type SessionLifecycleEvent 
 } from './session-lifecycle.reducer';
 import { getSessionStatus } from '@/src/application/session/get-session-status';
 import type { 
@@ -70,10 +69,9 @@ export function useSessionLifecycle(sessionId: string, initialSnapshot: SessionS
       )
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') {
-          // Quando conectamos (ou reconectamos via channel nativo), voltamos a ler
-          if (state.phase === 'reconnecting') {
-             resync();
-          }
+          // Fecha a janela entre o carregamento inicial e a assinatura do canal.
+          // Se um UPDATE ocorreu antes de SUBSCRIBED, esta leitura recupera o estado atual.
+          resync();
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           dispatch({ type: 'reconnecting' });
           resync();

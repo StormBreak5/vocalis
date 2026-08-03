@@ -21,7 +21,7 @@ test.describe('Host Close Session', () => {
     await closeBtn.click();
     
     // Dialog abre
-    const dialog = hostPage.getByRole('alertdialog');
+    const dialog = hostPage.getByRole('alertdialog', { name: /Encerrar sala/i });
     await expect(dialog).toBeVisible();
     
     // Foco deve estar no dialog ou botões (acessibilidade)
