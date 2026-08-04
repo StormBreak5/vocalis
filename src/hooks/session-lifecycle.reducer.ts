@@ -9,12 +9,12 @@ export type SessionLifecycleEvent =
   | { type: 'error'; message: string }
   | { type: 'reset' };
 
-export const initialSessionLifecycleState: SessionLifecycleState = { snapshot:null, phase:'loading', epoch:0, writesAllowed:false, error:null };
+export const initialSessionLifecycleState: SessionLifecycleState = { snapshot:null, phase:'loading', epoch:0, writesAllowed:false, newQueueEntriesAllowed:false, error:null };
 
 export function sessionLifecycleReducer(state: SessionLifecycleState, event: SessionLifecycleEvent): SessionLifecycleState {
   if (state.phase === 'closed' && event.type !== 'reset') return state;
   switch(event.type) {
-    case 'loading': return { ...state, phase:'loading', writesAllowed:false, error:null };
+    case 'loading': return { ...state, phase:'loading', writesAllowed:false, newQueueEntriesAllowed:false, error:null };
     case 'snapshot':
     case 'SESSION_UPDATED': {
       const isClosed = event.snapshot.status === 'closed';
@@ -26,16 +26,17 @@ export function sessionLifecycleReducer(state: SessionLifecycleState, event: Ses
         phase: isClosed ? 'closed' : 'connected', 
         epoch: state.epoch + 1, 
         writesAllowed: !isClosed, 
+        newQueueEntriesAllowed: event.snapshot.status === 'active',
         error: null 
       };
     }
     case 'reconnecting': {
       // Mantém coesão caso esteja reconectando de uma sessão fechada localmente
       if (state.snapshot?.status === 'closed') return state;
-      return { ...state, phase:'reconnecting', writesAllowed:false, error:null };
+      return { ...state, phase:'reconnecting', writesAllowed:false, newQueueEntriesAllowed:false, error:null };
     }
-    case 'offline': return { ...state, phase:'offline', writesAllowed:false };
-    case 'error': return { ...state, phase:'error', writesAllowed:false, error:event.message };
+    case 'offline': return { ...state, phase:'offline', writesAllowed:false, newQueueEntriesAllowed:false };
+    case 'error': return { ...state, phase:'error', writesAllowed:false, newQueueEntriesAllowed:false, error:event.message };
     case 'reset': return initialSessionLifecycleState;
   }
 }

@@ -175,4 +175,58 @@ describe('useSessionLifecycle', () => {
     unmount();
     expect(unsubscribeCallCount).toBe(1);
   });
+
+  it('aplica pause e resume recebidos por Realtime sem refresh', () => {
+    const { result } = renderHook(() =>
+      useSessionLifecycle(SESSION_ID, INITIAL_SNAPSHOT, dependencies),
+    );
+
+    const emitStatus = (status: 'active' | 'paused') => {
+      act(() => {
+        payloadHandler?.({
+          eventType: 'UPDATE',
+          schema: 'public',
+          table: 'sessions',
+          commit_timestamp: '2026-08-04T10:00:00.000Z',
+          new: { id: SESSION_ID, code: 'TEST23', status, closed_at: null },
+          old: {},
+          errors: [],
+        });
+      });
+    };
+
+    emitStatus('paused');
+    expect(result.current.state).toMatchObject({
+      snapshot: expect.objectContaining({ status: 'paused' }),
+      writesAllowed: true,
+      newQueueEntriesAllowed: false,
+    });
+
+    emitStatus('active');
+    expect(result.current.state).toMatchObject({
+      snapshot: expect.objectContaining({ status: 'active' }),
+      writesAllowed: true,
+      newQueueEntriesAllowed: true,
+    });
+  });
+
+  it('recupera paused por resync quando o evento Realtime foi perdido', async () => {
+    getStatusMock.mockResolvedValue({
+      ok: true,
+      snapshot: { ...INITIAL_SNAPSHOT, status: 'paused' },
+    });
+    const { result } = renderHook(() =>
+      useSessionLifecycle(SESSION_ID, INITIAL_SNAPSHOT, dependencies),
+    );
+
+    await act(async () => {
+      statusHandler?.('SUBSCRIBED');
+      await Promise.resolve();
+    });
+
+    expect(result.current.state).toMatchObject({
+      snapshot: expect.objectContaining({ status: 'paused' }),
+      newQueueEntriesAllowed: false,
+    });
+  });
 });

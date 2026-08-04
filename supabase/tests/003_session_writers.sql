@@ -1,6 +1,6 @@
 BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
-SELECT plan(21);
+SELECT plan(25);
 SELECT ok(to_regprocedure('public.join_session(text,text)') IS NOT NULL,'join existe');
 SELECT ok(to_regprocedure('public.create_queue_entry(uuid,character varying,character varying)') IS NOT NULL,'create existe');
 SELECT ok(to_regprocedure('public.cancel_queue_entry(uuid)') IS NOT NULL,'cancel existe');
@@ -19,6 +19,7 @@ INSERT INTO public.sessions(id,code,host_id,status,closed_at) VALUES
 ('20000000-0000-4000-8000-000000000033','WRT033','10000000-0000-4000-8000-000000000031','closed',now());
 INSERT INTO public.participants(id,session_id,display_name,auth_user_id) VALUES
 ('30000000-0000-4000-8000-000000000031','20000000-0000-4000-8000-000000000031','Member','10000000-0000-4000-8000-000000000032'),
+('30000000-0000-4000-8000-000000000032','20000000-0000-4000-8000-000000000032','Paused Member','10000000-0000-4000-8000-000000000032'),
 ('30000000-0000-4000-8000-000000000034','20000000-0000-4000-8000-000000000031','Other',NULL),
 ('30000000-0000-4000-8000-000000000033','20000000-0000-4000-8000-000000000033','Member','10000000-0000-4000-8000-000000000032');
 INSERT INTO public.queue(id,session_id,participant_id,song_title,artist,status,position) VALUES
@@ -27,6 +28,8 @@ INSERT INTO public.queue(id,session_id,participant_id,song_title,artist,status,p
 SELECT set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000032","role":"authenticated"}',true);
 SET LOCAL ROLE authenticated;
 SELECT lives_ok($$SELECT * FROM public.create_queue_entry('20000000-0000-4000-8000-000000000031','New song','Artist')$$,'create active');
+SELECT throws_ok($$SELECT * FROM public.create_queue_entry('20000000-0000-4000-8000-000000000032','Blocked paused','Artist')$$,'P0001','SESSION_PAUSED','create paused bloqueado');
+SELECT throws_ok($$SELECT * FROM public.update_session_status('20000000-0000-4000-8000-000000000031','paused')$$,'P0001','SESSION_NOT_FOUND_OR_FORBIDDEN','não Host não altera sessão');
 SELECT throws_ok($$SELECT * FROM public.create_queue_entry('20000000-0000-4000-8000-000000000033','Blocked','Artist')$$,'P0001','SESSION_CLOSED','create closed bloqueado');
 SELECT throws_ok($$SELECT public.cancel_queue_entry('40000000-0000-4000-8000-000000000033')$$,'P0001','SESSION_CLOSED','cancel closed bloqueado');
 RESET ROLE;
@@ -41,6 +44,8 @@ SET LOCAL ROLE authenticated;
 SELECT lives_ok($$SELECT * FROM public.update_queue_status('40000000-0000-4000-8000-000000000031','preparing')$$,'Host atualiza queue active');
 SELECT throws_ok($$SELECT * FROM public.update_queue_status('40000000-0000-4000-8000-000000000033','preparing')$$,'P0001','SESSION_CLOSED','update queue closed bloqueado');
 SELECT lives_ok($$SELECT * FROM public.update_session_status('20000000-0000-4000-8000-000000000031','paused')$$,'pause permitido');
+SELECT is((SELECT changed FROM public.update_session_status('20000000-0000-4000-8000-000000000031','paused')),false,'pause idempotente');
+SELECT is((SELECT status FROM public.update_session_status('20000000-0000-4000-8000-000000000031','active')),'active','resume permitido');
 SELECT throws_ok($$SELECT * FROM public.update_session_status('20000000-0000-4000-8000-000000000033','active')$$,'P0001','SESSION_CLOSED','resume closed bloqueado');
 SELECT throws_ok($$SELECT * FROM public.update_session_status('20000000-0000-4000-8000-000000000031','closed')$$,'P0001','INVALID_STATUS_TRANSITION','status writer não define closed');
 RESET ROLE;

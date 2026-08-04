@@ -36,6 +36,7 @@ function setContext(phase: 'connected' | 'closed') {
     phase,
     epoch: 1,
     writesAllowed: phase !== 'closed',
+    newQueueEntriesAllowed: phase !== 'closed',
     error: null,
     sessionId,
     dispatch: vi.fn(),

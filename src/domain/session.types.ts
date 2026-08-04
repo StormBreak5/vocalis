@@ -50,6 +50,7 @@ export type SessionLifecycleState = {
   phase: SessionLifecyclePhase;
   epoch: number;
   writesAllowed: boolean;
+  newQueueEntriesAllowed: boolean;
   error: string | null;
 };
 

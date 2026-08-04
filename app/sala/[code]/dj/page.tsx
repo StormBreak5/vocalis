@@ -5,6 +5,7 @@ import { SessionCodeDisplay } from '@/src/components/session/SessionCodeDisplay'
 import { CloseSessionButton } from '@/src/components/session/CloseSessionButton';
 import { SessionLifecycleProvider } from '@/src/components/session/SessionLifecycleProvider';
 import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
+import { SessionStatusToggle } from '@/src/components/session/SessionStatusToggle';
 import { QueueList } from '@/src/components/queue/QueueList';
 import { ParticipantsList } from '@/src/components/participant/ParticipantsList';
 
@@ -42,7 +43,8 @@ export default async function HostDashboardPage({
         
         <SessionCodeDisplay code={session.code} />
         
-        <div className="mt-8 flex justify-center w-full max-w-sm mx-auto">
+        <div className="mt-8 flex flex-col gap-3 justify-center w-full max-w-sm mx-auto">
+          <SessionStatusToggle />
           <CloseSessionButton />
         </div>
 
