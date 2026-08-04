@@ -18,7 +18,7 @@
     "test:db": "node scripts/supabase/run-pgtap-local.mjs",
     "test:db:prepare": "node scripts/supabase/manage-local.mjs prepare",
     "test:db:stop": "node scripts/supabase/manage-local.mjs stop",
-    "test:ci:environment": "vitest run --config vitest.unit.config.ts scripts/__tests__/e2e-local-environment.test.mjs scripts/__tests__/pgtap-runner.test.mjs scripts/__tests__/artifact-sanitizer.test.mjs",
+    "test:ci:environment": "vitest run --config vitest.unit.config.ts scripts/__tests__/e2e-local-environment.test.mjs scripts/__tests__/pgtap-runner.test.mjs scripts/__tests__/artifact-sanitizer.test.mjs scripts/__tests__/integration-test-separation.test.mjs",
     "test:watch": "vitest",
     "test:e2e": "node scripts/e2e/run-local.mjs functional",
     "test:e2e:functional": "node scripts/e2e/run-local.mjs functional",

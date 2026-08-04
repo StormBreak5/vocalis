@@ -6,6 +6,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       exclude: [
+        '**/__tests__/infrastructure/db/*.test.ts',
         'src/infrastructure/__tests__/session-closure-concurrency.integration.test.ts',
         'src/infrastructure/__tests__/session-closure-preservation.integration.test.ts',
       ],
