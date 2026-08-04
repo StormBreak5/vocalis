@@ -12,6 +12,8 @@ import {
 } from './local-environment.mjs';
 
 const { Client: PostgresClient } = pg;
+const SUPABASE_TEST_EXCLUDES =
+  'storage-api,imgproxy,mailpit,postgres-meta,studio,logflare,vector,supavisor';
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(scriptDirectory, '..', '..');
 const supabaseCli = resolve(projectRoot, 'node_modules', 'supabase', 'dist', 'supabase.js');
@@ -110,7 +112,7 @@ async function prepareSupabase() {
   if (!status) {
     log('Supabase local não está pronto; iniciando serviços locais.');
     await runSupabaseCommand(
-      ['start'],
+      ['start', '--exclude', SUPABASE_TEST_EXCLUDES],
       'Falha ao iniciar o Supabase local. Consulte os logs da Supabase CLI.',
     );
   }
@@ -325,7 +327,8 @@ async function main() {
   });
   await waitForNext(baseUrl);
 
-  const testArguments = ['test', '--workers=1', '--reporter=line'];
+  const reporter = process.env.CI ? 'line,html' : 'line';
+  const testArguments = ['test', '--workers=1', `--reporter=${reporter}`];
   if (mode === 'functional') testArguments.push('--grep-invert=@performance');
   else testArguments.push('--grep=@performance');
   if (
