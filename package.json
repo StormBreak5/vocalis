@@ -9,7 +9,11 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/e2e/run-local.mjs functional",
+    "test:e2e:functional": "node scripts/e2e/run-local.mjs functional",
+    "test:e2e:chrome": "node scripts/e2e/run-local.mjs functional --project=\"Mobile Chrome\"",
+    "test:e2e:webkit": "node scripts/e2e/run-local.mjs functional --project=\"Mobile Safari\"",
+    "test:e2e:performance": "node scripts/e2e/run-local.mjs performance --project=\"Mobile Chrome\"",
     "typecheck": "tsc --noEmit",
     "test:db:race": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-db-race-local.ps1"
   },

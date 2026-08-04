@@ -1,4 +1,7 @@
 import { defineConfig, devices } from '@playwright/test';
+import { assertPlaywrightEnvironment } from './scripts/e2e/local-environment.mjs';
+
+const { baseUrl } = assertPlaywrightEnvironment(process.env);
 
 export default defineConfig({
   testDir: './e2e',
@@ -8,7 +11,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: baseUrl,
     trace: 'on-first-retry',
   },
   projects: [
@@ -21,9 +24,4 @@ export default defineConfig({
       use: { ...devices['iPhone 14'] },
     },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
 });
