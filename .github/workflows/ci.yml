@@ -1,0 +1,211 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24.13.1
+  NPM_VERSION: 11.8.0
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Fixar npm aprovado
+        run: npm install --global npm@${NPM_VERSION}
+
+      - name: Verificar versões
+        run: |
+          test "$(node --version)" = "v${NODE_VERSION}"
+          test "$(npm --version)" = "${NPM_VERSION}"
+
+      - name: Instalação reproduzível
+        run: npm ci
+
+      - name: Testar proteções dos executores
+        run: npm run test:ci:environment
+
+      - name: Testes unitários
+        run: npm run test:unit
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build de produção
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: local-ci-build-placeholder
+
+      - name: Auditoria de runtime
+        run: npm audit --omit=dev --audit-level=high
+
+  database:
+    name: database
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Fixar npm aprovado
+        run: npm install --global npm@${NPM_VERSION}
+
+      - name: Instalação reproduzível
+        run: npm ci
+
+      - name: Verificar Docker
+        run: docker info
+
+      - name: Preparar Supabase local
+        run: npm run test:db:prepare
+
+      - name: Testes SQL pgTAP
+        run: npm run test:db
+
+      - name: Testes de integração
+        run: npm run test:integration
+
+      - name: Testes de concorrência
+        run: npm run test:db:race
+
+      - name: Limpar Supabase local
+        if: always()
+        run: npm run test:db:stop
+
+  e2e-chrome:
+    name: e2e-chrome
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Fixar npm aprovado
+        run: npm install --global npm@${NPM_VERSION}
+
+      - name: Instalação reproduzível
+        run: npm ci
+
+      - name: Instalar Chromium
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: E2E funcional Chromium
+        run: npm run test:e2e:chrome
+
+      - name: Sanitizar diagnósticos
+        if: failure()
+        run: npm run test:e2e:sanitize
+      - name: Limpar Supabase local
+        if: always()
+        run: npm run test:db:stop
+
+      - name: Publicar diagnóstico em falha
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-chrome-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          include-hidden-files: false
+          retention-days: 7
+
+  e2e-webkit:
+    name: e2e-webkit (informativo)
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Fixar npm aprovado
+        run: npm install --global npm@${NPM_VERSION}
+
+      - name: Instalação reproduzível
+        run: npm ci
+
+      - name: Instalar WebKit
+        run: npx --no-install playwright install --with-deps webkit
+
+      - name: E2E funcional WebKit
+        run: npm run test:e2e:webkit
+
+      - name: Sanitizar diagnósticos
+        if: failure()
+        run: npm run test:e2e:sanitize
+      - name: Limpar Supabase local
+        if: always()
+        run: npm run test:db:stop
+
+      - name: Publicar diagnóstico em falha
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-webkit-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: warn
+          include-hidden-files: false
+          retention-days: 7

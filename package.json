@@ -2,20 +2,32 @@
   "name": "vocalis",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "24.13.1",
+    "npm": "11.8.0"
+  },
+  "packageManager": "npm@11.8.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run",
+    "test": "npm run test:unit",
+    "test:unit": "vitest run --config vitest.unit.config.ts",
+    "test:integration": "node scripts/supabase/run-vitest-local.mjs integration",
+    "test:db": "node scripts/supabase/run-pgtap-local.mjs",
+    "test:db:prepare": "node scripts/supabase/manage-local.mjs prepare",
+    "test:db:stop": "node scripts/supabase/manage-local.mjs stop",
+    "test:ci:environment": "vitest run --config vitest.unit.config.ts scripts/__tests__/e2e-local-environment.test.mjs scripts/__tests__/pgtap-runner.test.mjs scripts/__tests__/artifact-sanitizer.test.mjs scripts/__tests__/integration-test-separation.test.mjs",
     "test:watch": "vitest",
     "test:e2e": "node scripts/e2e/run-local.mjs functional",
     "test:e2e:functional": "node scripts/e2e/run-local.mjs functional",
     "test:e2e:chrome": "node scripts/e2e/run-local.mjs functional --project=\"Mobile Chrome\"",
     "test:e2e:webkit": "node scripts/e2e/run-local.mjs functional --project=\"Mobile Safari\"",
     "test:e2e:performance": "node scripts/e2e/run-local.mjs performance --project=\"Mobile Chrome\"",
+    "test:e2e:sanitize": "node scripts/e2e/sanitize-artifacts.mjs playwright-report test-results",
     "typecheck": "tsc --noEmit",
-    "test:db:race": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-db-race-local.ps1"
+    "test:db:race": "node scripts/supabase/run-vitest-local.mjs race"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -53,7 +65,7 @@
     "jsdom": "^29.1.1",
     "pg": "8.22.0",
     "shadcn": "^4.13.0",
-    "supabase": "^2.111.0",
+    "supabase": "2.111.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^4.1.10"

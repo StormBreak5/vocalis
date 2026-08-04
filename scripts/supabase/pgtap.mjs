@@ -1,0 +1,62 @@
+import { existsSync, readdirSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
+
+export const APPROVED_PGTAP_FILES = Object.freeze([
+  '003_close_session.sql',
+  '003_participants_rls.sql',
+  '003_queue_rls.sql',
+  '003_session_closure_invariants.sql',
+  '003_session_concurrency.sql',
+  '003_session_privileges.sql',
+  '003_session_writers.sql',
+  '003_sessions_rls.sql',
+]);
+
+export function resolveApprovedPgtapFiles(testsDirectory) {
+  const missing = APPROVED_PGTAP_FILES.filter(
+    (file) => !existsSync(resolve(testsDirectory, file)),
+  );
+  if (missing.length > 0) {
+    throw new Error(`Arquivos pgTAP esperados ausentes: ${missing.join(', ')}.`);
+  }
+
+  const discovered = readdirSync(testsDirectory)
+    .filter((file) => file.endsWith('.sql'))
+    .sort();
+  const unexpected = discovered.filter(
+    (file) => !APPROVED_PGTAP_FILES.includes(file),
+  );
+  if (unexpected.length > 0) {
+    throw new Error(
+      `Arquivos pgTAP ainda não aprovados no executor: ${unexpected.join(', ')}.`,
+    );
+  }
+
+  return APPROVED_PGTAP_FILES.map((file) => resolve(testsDirectory, file));
+}
+
+export function collectPgtapFailures(queryResults) {
+  const results = Array.isArray(queryResults) ? queryResults : [queryResults];
+  const failures = [];
+
+  for (const result of results) {
+    for (const row of result?.rows ?? []) {
+      for (const value of Object.values(row)) {
+        if (typeof value !== 'string') continue;
+        const line = value.trim();
+        if (
+          /^(not ok\b|Bail out!)/i.test(line) ||
+          /^# Looks like you (failed|planned)/i.test(line)
+        ) {
+          failures.push(line);
+        }
+      }
+    }
+  }
+
+  return failures;
+}
+
+export function pgtapFileLabel(filePath) {
+  return basename(filePath);
+}
