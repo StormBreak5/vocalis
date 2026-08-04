@@ -5,10 +5,35 @@ import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import { Loader2 } from 'lucide-react';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { closeSessionAction } from '@/src/application/session/close-session.action';
+import { getSessionStatus } from '@/src/application/session/get-session-status';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { useRouter } from 'next/navigation';
+import type { SessionStatusSnapshot } from '@/src/domain/session.types';
 
 type CloseState = 'idle' | 'loading' | 'error' | 'uncertain';
+type CloseAttempt =
+  | { type: 'result'; result: Awaited<ReturnType<typeof closeSessionAction>> }
+  | { type: 'timeout' };
+
+const CLOSE_CONFIRMATION_TIMEOUT_MS = 8_000;
+
+async function waitForCloseResult(sessionId: string): Promise<CloseAttempt> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  const timeout = new Promise<CloseAttempt>((resolve) => {
+    timeoutId = setTimeout(
+      () => resolve({ type: 'timeout' }),
+      CLOSE_CONFIRMATION_TIMEOUT_MS,
+    );
+  });
+  const action = closeSessionAction(sessionId).then(
+    (result): CloseAttempt => ({ type: 'result', result }),
+  );
+
+  const outcome = await Promise.race([action, timeout]);
+  if (timeoutId) clearTimeout(timeoutId);
+  return outcome;
+}
 
 export function CloseSessionButton() {
   const { sessionId, snapshot, dispatch } = useSessionLifecycleContext();
@@ -22,31 +47,60 @@ export function CloseSessionButton() {
   const isLoading = state === 'loading';
   const isDisabled = !isOnline || isLoading;
 
+  const applyClosedSnapshot = (closedSnapshot: SessionStatusSnapshot) => {
+    dispatch({ type: 'SESSION_UPDATED', snapshot: closedSnapshot });
+    setOpen(false);
+    setState('idle');
+    router.refresh();
+  };
+
   async function handleConfirm() {
-    if (isLoading) return; // deduplicação
+    if (isLoading) return;
+
     setState('loading');
     setErrorMessage(null);
+
     try {
-      const result = await closeSessionAction(sessionId);
+      const outcome = await waitForCloseResult(sessionId);
+
+      if (outcome.type === 'timeout') {
+        dispatch({ type: 'reconnecting' });
+        const recovered = await getSessionStatus(sessionId);
+
+        if (
+          recovered.ok
+          && recovered.snapshot.status === 'closed'
+          && recovered.snapshot.closedAt
+        ) {
+          applyClosedSnapshot(recovered.snapshot);
+          return;
+        }
+
+        setState('uncertain');
+        setErrorMessage(
+          'Não foi possível confirmar se a sala foi encerrada. Verifique sua conexão e tente novamente.',
+        );
+        return;
+      }
+
+      const result = outcome.result;
       if (result.ok) {
-        dispatch({
-          type: 'SESSION_UPDATED',
-          snapshot: {
-            id: result.result.sessionId,
-            code: snapshot?.code ?? '',
-            status: result.result.status,
-            closedAt: result.result.closedAt,
-          },
+        applyClosedSnapshot({
+          id: result.result.sessionId,
+          code: snapshot?.code ?? '',
+          status: result.result.status,
+          closedAt: result.result.closedAt,
         });
-        setOpen(false);
-        setState('idle');
-        router.refresh();
       } else if (result.code === 'RESPONSE_UNCERTAIN') {
         setState('uncertain');
-        setErrorMessage('Não foi possível confirmar se a sala foi encerrada. Verifique sua conexão e tente novamente.');
+        setErrorMessage(
+          'Não foi possível confirmar se a sala foi encerrada. Verifique sua conexão e tente novamente.',
+        );
       } else {
         setState('error');
-        setErrorMessage(result.userMessage ?? 'Erro ao encerrar a sala. Tente novamente.');
+        setErrorMessage(
+          result.userMessage ?? 'Erro ao encerrar a sala. Tente novamente.',
+        );
       }
     } catch {
       setState('error');
@@ -64,15 +118,17 @@ export function CloseSessionButton() {
   return (
     <div>
       {!isOnline && (
-        <p
-          className="text-xs text-amber-400 mb-2 text-center"
-          aria-live="polite"
-        >
+        <p className="text-xs text-amber-400 mb-2 text-center" aria-live="polite">
           Conexão necessária para encerrar a sala.
         </p>
       )}
 
-      <AlertDialog.Root open={open} onOpenChange={(v) => { if (!isLoading) setOpen(v); }}>
+      <AlertDialog.Root
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!isLoading) setOpen(nextOpen);
+        }}
+      >
         <AlertDialog.Trigger asChild>
           <button
             type="button"
@@ -107,18 +163,22 @@ export function CloseSessionButton() {
               'bg-zinc-900 border border-zinc-700 shadow-2xl',
               'focus:outline-none',
             ].join(' ')}
-            onEscapeKeyDown={(e) => e.preventDefault()}
-            deferPointerDownOutside={true}
+            onEscapeKeyDown={(event) => event.preventDefault()}
+            deferPointerDownOutside
           >
             <AlertDialog.Title className="text-lg font-bold text-white mb-2">
               Encerrar sala?
             </AlertDialog.Title>
             <AlertDialog.Description className="text-sm text-zinc-400 mb-5">
-              Esta ação é permanente. A sala será encerrada para todos os participantes e não poderá ser reaberta.
+              Esta ação é permanente. A sala será encerrada para todos os
+              participantes e não poderá ser reaberta.
             </AlertDialog.Description>
 
             {(state === 'error' || state === 'uncertain') && errorMessage && (
-              <div role="alert" className="mb-4 rounded-lg p-3 text-sm bg-red-900/50 border border-red-700 text-red-300">
+              <div
+                role="alert"
+                className="mb-4 rounded-lg p-3 text-sm bg-red-900/50 border border-red-700 text-red-300"
+              >
                 {errorMessage}
               </div>
             )}
@@ -126,7 +186,7 @@ export function CloseSessionButton() {
             <div className="flex flex-col gap-3">
               <button
                 type="button"
-                onClick={handleConfirm}
+                onClick={() => void handleConfirm()}
                 disabled={isLoading}
                 aria-label="Confirmar encerramento"
                 className={[

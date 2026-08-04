@@ -198,3 +198,17 @@ npm run build
 - Feature concluída somente com `T091` verde.
 
 **Total**: 91 tarefas. **MVP sugerido**: Setup + Foundational + US1.
+
+
+## Phase 9: Convergence
+
+- [X] T092 CRITICAL Remover `any` e o disable de `@typescript-eslint/no-explicit-any` de `src/hooks/useSessionLifecycle.ts` e seus testes, receber payload Realtime como `unknown`, validá-lo com `parseSessionRealtimeEnvelope` antes de qualquer dispatch e provar rejeição fail-closed de colunas/envelopes inesperados per Constitution IV, plan: Realtime envelope e SR-008 (contradicts)
+- [X] T093 Ajustar `src/components/session/SessionClosedDialog.tsx` e seus testes para exibir exatamente o título “Sala encerrada”, a mensagem “O DJ encerrou esta sessão de karaokê.” e a ação “Voltar para o início” per FR-012 (contradicts)
+- [X] T094 Implementar cleanup room-scoped real e aguardável antes de `router.replace('/')`, encerrando canais e removendo somente estado/snapshots/cache da Session e Queue daquela sala, preservando Supabase Auth, cookies e outras salas; ampliar testes de múltiplas abas per FR-014 e AC-006 (partial)
+- [X] T095 Reescrever `e2e/close-session-realtime.spec.ts` para exigir modal no Host e em dois Participants sem reload, executar exatamente 20 entregas, calcular p95 <= 2 s e salvar evidência em `specs/003-close-session/validation/realtime-p95/automated-local.json` per FR-008, SC-002 e AC-004 (partial)
+- [X] T096 Criar `e2e/close-session-slow-network.spec.ts` cobrindo Slow 3G, loading contínuo, chamada única, resposta perdida/incerta e resync sem sucesso prematuro; salvar `specs/003-close-session/validation/slow-network-e2e.json` per NFR-002, NFR-005 e SC-006 (missing)
+- [X] T097 Completar `e2e/close-session-recovery.spec.ts` e criar `e2e/close-session-reconnect.spec.ts` para refresh, URL direta, offline durante o close, evento Realtime perdido, aba suspensa/BFCache, reconexão e token renovado per SC-003 e AC-008 (partial)
+- [X] T098 Fortalecer `e2e/close-session-write-blocking.spec.ts` para tentar entrada, criação, cancelamento, pause/resume e alteração de status após closed, verificando respostas amigáveis e dados inalterados no servidor per SC-004 e AC-007 (partial)
+- [X] T099 Após T092–T098, executar novamente SQL, race harness, Vitest, Playwright, lint, typecheck e build; criar as evidências ausentes `validation/us2.md` e `validation/us3.md` e reconciliar `validation/final-gate.md` apenas com resultados atuais per NFR-007, SC-010 e AC-012 (partial)
+
+**Convergence**: 8 tarefas adicionais. Novo total histórico: 99 tarefas.

@@ -1,19 +1,10 @@
 import type { Metadata } from "next";
-import { Roboto, Roboto_Mono } from "next/font/google";
+import "@fontsource-variable/roboto/wght.css";
+import "@fontsource-variable/roboto-mono/wght.css";
 import { OfflineBanner } from "@/src/components/ui/OfflineBanner";
 import { Toaster } from "@/src/components/ui/sonner";
 import "./globals.css";
 
-const roboto = Roboto({
-  variable: "--font-roboto",
-  subsets: ["latin"],
-  weight: ["100", "300", "400", "500", "700", "900"],
-});
-
-const robotoMono = Roboto_Mono({
-  variable: "--font-roboto-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Vocalis",
@@ -44,7 +35,7 @@ export default function RootLayout({
   return (
       <html
         lang="pt-BR"
-        className={`${roboto.variable} ${robotoMono.variable} h-full antialiased dark`}
+        className="h-full antialiased dark"
       >
       <body className="flex flex-col min-h-[100dvh] antialiased pb-safe">
         <OfflineBanner />

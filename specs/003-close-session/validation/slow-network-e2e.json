@@ -1,0 +1,21 @@
+{
+  "scenario": "close_session_response_delayed_after_server_commit",
+  "environment": {
+    "browser": "Chromium",
+    "viewport": "390x844-compatible mobile project",
+    "downloadKbps": 400,
+    "uploadKbps": 200,
+    "rttMs": 400,
+    "delayedResponseMs": 9000,
+    "clientUncertaintyTimeoutMs": 8000
+  },
+  "assertions": {
+    "immediateLoading": true,
+    "duplicateCalls": 1,
+    "noPrematureSuccess": true,
+    "recoveredByPointRead": true,
+    "recoveredAfterMs": 10116
+  },
+  "verdict": "pass",
+  "measuredAt": "2026-08-04T03:08:29.975Z"
+}

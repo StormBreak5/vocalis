@@ -6,12 +6,16 @@ const envelope = { eventType:'UPDATE', schema:'public', table:'sessions', commit
 
 describe('Session Realtime envelope', () => {
   it('aceita envelope válido e old parcial', () => expect(parseSessionRealtimeEnvelope(envelope).new).toEqual(row));
-  it.each([
-    [{...envelope,new:{...row,host_id:'secret'}},'host_id'],
-    [{...envelope,new:{...row,unexpected:true}},'unexpected'],
-    [{...envelope,schema:'private'},'schema'],
-    [{...envelope,table:'participants'},'table'],
-    [{...envelope,eventType:'INSERT'},'eventType'],
-  ])('rejeita payload inválido %s', (value) => expect(() => parseSessionRealtimeEnvelope(value)).toThrow());
+  const invalidCases: Array<{ value: unknown; field: string }> = [
+    { value: { ...envelope, new: { ...row, host_id: 'secret' } }, field: 'host_id' },
+    { value: { ...envelope, new: { ...row, unexpected: true } }, field: 'unexpected' },
+    { value: { ...envelope, schema: 'private' }, field: 'schema' },
+    { value: { ...envelope, table: 'participants' }, field: 'table' },
+    { value: { ...envelope, eventType: 'INSERT' }, field: 'eventType' },
+  ];
+
+  it.each(invalidCases)('rejeita payload inválido em $field', ({ value }) => {
+    expect(() => parseSessionRealtimeEnvelope(value)).toThrow();
+  });
   it('não rejeita metadados válidos adicionais do envelope', () => expect(parseSessionRealtimeEnvelope({...envelope, latency:12}).eventType).toBe('UPDATE'));
 });

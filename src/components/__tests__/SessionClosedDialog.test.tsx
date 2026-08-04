@@ -1,82 +1,110 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
+import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
+import { performRoomCleanup } from '@/src/hooks/session-room-cleanup';
 
-// Mock do useRouter para evitar quebra ao redirecionar
 const replaceMock = vi.fn();
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: replaceMock }),
 }));
 
+vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({
+  useSessionLifecycleContext: vi.fn(),
+}));
 
-// Mock do useSessionLifecycleContext
-vi.mock('@/src/components/session/SessionLifecycleProvider', () => {
-  return {
-    useSessionLifecycleContext: vi.fn(),
-  };
-});
+vi.mock('@/src/hooks/session-room-cleanup', () => ({
+  performRoomCleanup: vi.fn(),
+}));
 
-import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
-import * as Cleanup from '@/src/hooks/session-room-cleanup';
+const contextMock = vi.mocked(useSessionLifecycleContext);
+const cleanupMock = vi.mocked(performRoomCleanup);
+const sessionId = '12345678-1234-4234-8234-123456789012';
+
+function setContext(phase: 'connected' | 'closed') {
+  contextMock.mockReturnValue({
+    snapshot: {
+      id: sessionId,
+      code: 'TEST23',
+      status: phase === 'closed' ? 'closed' : 'active',
+      closedAt: phase === 'closed' ? '2026-07-29T10:00:00.000Z' : null,
+    },
+    phase,
+    epoch: 1,
+    writesAllowed: phase !== 'closed',
+    error: null,
+    sessionId,
+    dispatch: vi.fn(),
+  });
+}
 
 describe('SessionClosedDialog', () => {
-  const mockContext = useSessionLifecycleContext as unknown as ReturnType<typeof vi.fn>;
+  beforeEach(() => {
+    vi.clearAllMocks();
+    cleanupMock.mockResolvedValue(undefined);
+  });
 
-  it('não renderiza nada se phase não for closed', () => {
-    mockContext.mockReturnValue({ phase: 'connected' });
+  it('não renderiza quando a sessão continua aberta', () => {
+    setContext('connected');
     render(<SessionClosedDialog />);
+
     expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
-  it('renderiza o dialog bloqueante quando phase é closed com textos corretos e focus trap', async () => {
-    mockContext.mockReturnValue({ phase: 'closed' });
+  it('exibe os textos obrigatórios e a única ação final', () => {
+    setContext('closed');
     render(<SessionClosedDialog />);
-    
-    // Como estamos usando Radix UI AlertDialog (ou implementando), esperamos um alertdialog
-    const dialog = screen.getByRole('alertdialog');
-    expect(dialog).not.toBeNull();
-    
-    // Verifica os textos
-    expect(screen.getByRole('heading', { name: /esta sessão foi encerrada/i })).not.toBeNull();
-    
-    // Verifica botão com min-h-48px
-    const btn = screen.getByRole('button', { name: /voltar ao início/i });
-    expect(btn.className).toMatch(/min-h-\[48px\]/);
+
+    expect(screen.getByRole('heading', { name: 'Sala encerrada' })).toBeDefined();
+    expect(screen.getByText('O DJ encerrou esta sessão de karaokê.')).toBeDefined();
+
+    const button = screen.getByRole('button', { name: 'Voltar para o início' });
+    expect(button.className).toMatch(/min-h-\[48px\]/);
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 
-  it('redireciona para home via REPLACE ao clicar no botão, invocando cleanup', async () => {
-    const cleanupSpy = vi.spyOn(Cleanup, 'performRoomCleanup');
-    // Como mockamos window.location ou useRouter, precisamos interceptar
+  it('aguarda o cleanup antes de substituir a rota', async () => {
+    let finishCleanup: (() => void) | undefined;
+    cleanupMock.mockImplementation(
+      () => new Promise<void>((resolve) => {
+        finishCleanup = resolve;
+      }),
+    );
+    setContext('closed');
     const user = userEvent.setup();
-    mockContext.mockReturnValue({ phase: 'closed', sessionId: '123' });
     render(<SessionClosedDialog />);
-    
-    const btn = screen.getByRole('button', { name: /voltar ao início/i });
-    await user.click(btn);
-    
-    expect(cleanupSpy).toHaveBeenCalledWith('123');
-    expect(replaceMock).toHaveBeenCalledWith('/');
+
+    await user.click(screen.getByRole('button', { name: 'Voltar para o início' }));
+
+    expect(cleanupMock).toHaveBeenCalledWith(sessionId);
+    expect(replaceMock).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Saindo...' }).hasAttribute('disabled')).toBe(true);
+
+    finishCleanup?.();
+
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith('/');
+    });
   });
 
-  it('não permite fechar via Escape (AlertDialog sem botões de cancelamento e preventDefault)', async () => {
+  it('não fecha via Escape', async () => {
+    setContext('closed');
     const user = userEvent.setup();
-    mockContext.mockReturnValue({ phase: 'closed' });
     render(<SessionClosedDialog />);
-    
-    // Simular press Escape
+
     await user.keyboard('{Escape}');
-    
-    // Dialog ainda deve estar na tela
-    expect(screen.getByRole('alertdialog')).not.toBeNull();
+
+    expect(screen.getByRole('alertdialog')).toBeDefined();
   });
 
-  it('não deve importar de @base-ui/react ou src/components/ui/button.tsx', () => {
+  it('usa Radix diretamente sem depender dos botões legados', () => {
     const filePath = path.resolve(__dirname, '../session/SessionClosedDialog.tsx');
     const content = fs.readFileSync(filePath, 'utf-8');
-    
+
     expect(content).not.toMatch(/@base-ui\/react/);
     expect(content).not.toMatch(/src\/components\/ui\/button\.tsx/);
     expect(content).toMatch(/@radix-ui\/react-alert-dialog/);

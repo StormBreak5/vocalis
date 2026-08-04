@@ -15,12 +15,15 @@
  * - Ausência de imports proibidos no arquivo do componente
  */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 
 vi.mock('@/src/application/session/close-session.action', () => ({
   closeSessionAction: vi.fn(),
+}));
+
+vi.mock('@/src/application/session/get-session-status', () => ({
+  getSessionStatus: vi.fn(),
 }));
 
 vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({
@@ -37,6 +40,7 @@ vi.mock('next/navigation', () => ({
 
 import { CloseSessionButton } from '@/src/components/session/CloseSessionButton';
 import { closeSessionAction } from '@/src/application/session/close-session.action';
+import { getSessionStatus } from '@/src/application/session/get-session-status';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 
@@ -60,6 +64,11 @@ describe('CloseSessionButton', () => {
     vi.clearAllMocks();
     vi.mocked(useSessionLifecycleContext).mockReturnValue(buildLifecycleContext() as never);
     vi.mocked(useOnlineStatus).mockReturnValue({ isOnline: true });
+    vi.mocked(getSessionStatus).mockResolvedValue({
+      ok: false,
+      code: 'SESSION_NOT_FOUND_OR_FORBIDDEN',
+      userMessage: 'Sala indisponível.',
+    });
   });
 
   // ------ Renderização básica ------
@@ -102,7 +111,7 @@ describe('CloseSessionButton', () => {
   // ------ Loading state ------
   it('desabilita botão durante chamada RPC (loading)', async () => {
     let resolveAction!: (v: Awaited<ReturnType<typeof closeSessionAction>>) => void;
-    vi.mocked(closeSessionAction).mockReturnValue(new Promise((res) => { resolveAction = res as any; }));
+    vi.mocked(closeSessionAction).mockReturnValue(new Promise((resolve) => { resolveAction = resolve; }));
     render(<CloseSessionButton />);
     fireEvent.click(screen.getByRole('button', { name: /encerrar sala/i }));
     await waitFor(() => screen.getByRole('alertdialog'));
@@ -118,7 +127,7 @@ describe('CloseSessionButton', () => {
   // ------ Deduplicação ------
   it('não dispara segunda chamada se já está em loading', async () => {
     let resolveAction!: (v: Awaited<ReturnType<typeof closeSessionAction>>) => void;
-    vi.mocked(closeSessionAction).mockReturnValue(new Promise((res) => { resolveAction = res as any; }));
+    vi.mocked(closeSessionAction).mockReturnValue(new Promise((resolve) => { resolveAction = resolve; }));
     render(<CloseSessionButton />);
     fireEvent.click(screen.getByRole('button', { name: /encerrar sala/i }));
     await waitFor(() => screen.getByRole('alertdialog'));

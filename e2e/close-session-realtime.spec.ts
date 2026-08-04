@@ -1,66 +1,127 @@
-import { test, expect } from '@playwright/test';
+import { writeFile } from 'node:fs/promises';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
+import {
+  closedDialogHeading,
+  confirmSessionClosure,
+  createSession,
+  joinSession,
+} from './helpers/session';
+
+const SAMPLE_COUNT = 20;
+const P95_LIMIT_MS = 2_000;
+const evidencePath =
+  'specs/003-close-session/validation/realtime-p95/automated-local.json';
+
+function nearestRankP95(samples: number[]) {
+  const ordered = [...samples].sort((left, right) => left - right);
+  return ordered[Math.ceil(0.95 * ordered.length) - 1];
+}
+
+async function joinParticipants(pages: Page[], code: string) {
+  for (let index = 0; index < pages.length; index += 1) {
+    await joinSession(
+      pages[index],
+      code,
+      'Participante Métrica ' + (index + 1),
+    );
+  }
+}
 
 test.describe('Realtime propagation of Session Closure', () => {
-  test('Host closing session propagates the closure to all participants instantly', async ({ browser }) => {
-    // 1. Host creates a session
+  test('entrega closed sem reload em exatamente 20 observações', async ({
+    browser,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'Métrica oficial executada em Chromium.');
+    test.setTimeout(180_000);
+
     const hostContext = await browser.newContext();
-    const hostPage = await hostContext.newPage();
-    hostPage.on('console', msg => console.log(`[Host] ${msg.text()}`));
-    
-    await hostPage.goto('/');
-    await hostPage.getByRole('button', { name: /Criar Nova Sala/i }).click();
-    
-    // Pegar o código da sala pela URL (ex: /sala/ABCDEF/dj)
-    await expect(hostPage).toHaveURL(/\/sala\/[A-Z0-9]{6}\/dj/i);
-    const url = hostPage.url();
-    const code = url.split('/sala/')[1].split('/dj')[0];
-    
-    // 2. Participant 1 joins
-    const p1Context = await browser.newContext();
-    const p1Page = await p1Context.newPage();
-    p1Page.on('console', msg => console.log(`[P1] ${msg.text()}`));
-    await p1Page.goto(`/sala/${code}`);
-    await p1Page.getByLabel(/Seu Nome/i).fill('Participante A');
-    await p1Page.getByRole('button', { name: /Entrar na sala/i }).click();
-    await expect(p1Page.getByText('Participante A')).toBeVisible();
+    const participantContexts: BrowserContext[] = [];
 
-    // 3. Participant 2 joins
-    const p2Context = await browser.newContext();
-    const p2Page = await p2Context.newPage();
-    await p2Page.goto(`/sala/${code}`);
-    await p2Page.getByLabel(/Seu Nome/i).fill('Participante B');
-    await p2Page.getByRole('button', { name: /Entrar na sala/i }).click();
-    await expect(p2Page.getByText('Participante B')).toBeVisible();
+    try {
+      const hostPage = await hostContext.newPage();
+      const code = await createSession(hostPage);
 
-    // Aguardar o Realtime local registrar os websockets no Elixir
-    await hostPage.waitForTimeout(3000);
+      const participantPages: Page[] = [];
+      for (let index = 0; index < SAMPLE_COUNT; index += 1) {
+        const context = await browser.newContext();
+        participantContexts.push(context);
+        const participantPage = await context.newPage();
+        participantPages.push(participantPage);
+      }
 
-    // 4. Host encerra a sessão
-    await hostPage.bringToFront();
-    const closeBtn = hostPage.getByRole('button', { name: /Encerrar sala/i });
-    await closeBtn.click();
-    const confirmBtn = hostPage.getByRole('button', { name: /Confirmar encerramento/i });
-    await confirmBtn.click();
-    
-    // Opcional: Aguarda o modal de encerramento geral do lifecycle aparecer (isso prova que o host recebeu localmente)
-    await expect(hostPage.getByRole('heading', { name: /Esta sessão foi encerrada/i })).toBeVisible({ timeout: 10000 });
+      await joinParticipants(participantPages, code);
 
-    // 5. Participants recebem o evento e exibem o dialog
-    // P1
-    await p1Page.bringToFront();
-    // TODO: Na US3 (Resync / Heartbeat), a instabilidade local de Realtime será resolvida 
-    // com fallback Server-Side ou resync explícito na montagem, mitigando drops do WAL do Supabase Local.
-    // await expect(p1Page.getByRole('heading', { name: /Esta sessão foi encerrada/i })).toBeVisible({ timeout: 10000 });
-    // const btnP1 = p1Page.getByRole('button', { name: /Voltar ao início/i });
-    // await expect(btnP1).toBeVisible();
+      // A preparação não faz parte da métrica: aguarda todos os canais concluírem a assinatura.
+      await participantPages[0].waitForTimeout(3_000);
 
-    // P2
-    // await p2Page.bringToFront();
-    // await expect(p2Page.getByRole('heading', { name: /Esta sessão foi encerrada/i })).toBeVisible({ timeout: 10000 });
+      const commitConfirmedAt = hostPage
+        .waitForResponse((response) => {
+          const request = response.request();
+          return request.method() === 'POST'
+            && Boolean(request.headers()['next-action']);
+        })
+        .then(() => Date.now());
+      const deliveries = participantPages.map(async (participantPage) => {
+        await closedDialogHeading(participantPage).waitFor({
+          state: 'visible',
+          timeout: 10_000,
+        });
+        return Date.now();
+      });
 
-    // Clean up
-    await hostContext.close();
-    await p1Context.close();
-    await p2Context.close();
+      await confirmSessionClosure(hostPage);
+      await expect(closedDialogHeading(hostPage)).toBeVisible({
+        timeout: 10_000,
+      });
+      const startedAt = await commitConfirmedAt;
+      const deliveryResults = await Promise.allSettled(deliveries);
+      const failures = deliveryResults.filter(
+        (result) => result.status === 'rejected',
+      );
+      expect(failures, failures.length + ' entregas Realtime não chegaram.').toHaveLength(0);
+      const latencies = deliveryResults.flatMap((result) =>
+        result.status === 'fulfilled'
+          ? [Math.max(0, result.value - startedAt)]
+          : [],
+      );
+
+      expect(latencies).toHaveLength(SAMPLE_COUNT);
+      const p95 = nearestRankP95(latencies);
+      expect(p95).toBeLessThanOrEqual(P95_LIMIT_MS);
+
+      const ordered = [...latencies].sort((left, right) => left - right);
+      const evidence = {
+        metric: 'session_closed_realtime_delivery',
+        unit: 'ms',
+        environment: {
+          browser: 'Chromium',
+          viewport: 'mobile project viewport',
+          network: 'loopback sem throttling',
+          sessionCount: 1,
+          participantCount: SAMPLE_COUNT,
+          samples: SAMPLE_COUNT,
+        },
+        results: {
+          samples: latencies,
+          min: ordered[0],
+          max: ordered.at(-1),
+          p50: ordered[Math.ceil(0.5 * ordered.length) - 1],
+          p95,
+        },
+        threshold: {
+          p95MaxMs: P95_LIMIT_MS,
+        },
+        verdict: 'pass',
+        measuredAt: new Date().toISOString(),
+      };
+
+      await writeFile(evidencePath, JSON.stringify(evidence, null, 2) + '\n', 'utf8');
+    } finally {
+      await Promise.allSettled(
+        participantContexts.map((context) => context.close()),
+      );
+      await hostContext.close().catch(() => undefined);
+    }
   });
 });

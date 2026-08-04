@@ -18,7 +18,7 @@ test.describe('Navegação após encerramento (US5)', () => {
     const p1Context = await browser.newContext();
     const p1Page = await p1Context.newPage();
     await p1Page.goto(`/sala/${code}`);
-    await p1Page.getByLabel(/Seu Nome/i).fill('João Navegador');
+    await p1Page.getByLabel(/Seu Nome/i).pressSequentially('João Navegador');
     await p1Page.getByRole('button', { name: /Entrar na sala/i }).click();
     await expect(p1Page.getByText('João Navegador')).toBeVisible();
 
@@ -29,7 +29,7 @@ test.describe('Navegação após encerramento (US5)', () => {
 
     // Participante vê a modal e clica em Voltar
     await p1Page.bringToFront();
-    const voltarBtn = p1Page.getByRole('button', { name: /Voltar ao início/i });
+    const voltarBtn = p1Page.getByRole('button', { name: /Voltar para o início/i });
     await expect(voltarBtn).toBeVisible({ timeout: 5000 });
 
     const startTime = performance.now();

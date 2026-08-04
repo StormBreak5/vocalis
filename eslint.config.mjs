@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Auto-generated type file from Supabase CLI — do not lint
     "src/infrastructure/supabase/database.types.ts",
+    "supabase/.temp/**",
   ]),
 ]);
 

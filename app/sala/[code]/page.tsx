@@ -1,4 +1,6 @@
 import { getSessionStatus } from '@/src/application/session/get-session-status';
+import { toSessionStatusSnapshot } from '@/src/domain/session-lifecycle';
+import { getSessionStatusRowByCode } from '@/src/infrastructure/supabase/queries/session.queries';
 import { getParticipantForSessionCode } from '@/src/infrastructure/supabase/queries/participant.queries';
 import { JoinForm } from '@/src/components/participant/JoinForm';
 import { ParticipantView } from '@/src/components/participant/ParticipantView';
@@ -17,6 +19,22 @@ export default async function GuestRoomPage({
 }) {
   const { code } = await params;
   const uppercaseCode = code.toUpperCase();
+
+  const sessionStatusByCode = await getSessionStatusRowByCode(uppercaseCode);
+  if (sessionStatusByCode?.status === 'closed') {
+    const closedSnapshot = toSessionStatusSnapshot(sessionStatusByCode);
+
+    return (
+      <SessionLifecycleProvider
+        sessionId={closedSnapshot.id}
+        initialSnapshot={closedSnapshot}
+      >
+        <main className="flex-1 flex flex-col p-6 w-full max-w-lg mx-auto">
+          <SessionClosedDialog />
+        </main>
+      </SessionLifecycleProvider>
+    );
+  }
 
   const participant = await getParticipantForSessionCode(uppercaseCode);
   const statusResult = participant ? await getSessionStatus(participant.sessionId) : null;

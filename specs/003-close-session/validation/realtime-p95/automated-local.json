@@ -1,0 +1,45 @@
+{
+  "metric": "session_closed_realtime_delivery",
+  "unit": "ms",
+  "environment": {
+    "browser": "Chromium",
+    "viewport": "mobile project viewport",
+    "network": "loopback sem throttling",
+    "sessionCount": 1,
+    "participantCount": 20,
+    "samples": 20
+  },
+  "results": {
+    "samples": [
+      1135,
+      1135,
+      1744,
+      1231,
+      1655,
+      1655,
+      1232,
+      1655,
+      1236,
+      1236,
+      1232,
+      1236,
+      1236,
+      1236,
+      1236,
+      1236,
+      1744,
+      1236,
+      1232,
+      1236
+    ],
+    "min": 1135,
+    "max": 1744,
+    "p50": 1236,
+    "p95": 1744
+  },
+  "threshold": {
+    "p95MaxMs": 2000
+  },
+  "verdict": "pass",
+  "measuredAt": "2026-08-04T03:08:07.208Z"
+}
