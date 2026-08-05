@@ -18,9 +18,8 @@ test('Host pausa e retoma a fila com atualização em tempo real', async ({ brow
 
     await hostPage.getByRole('button', { name: 'Pausar fila' }).click();
     await expect(hostPage.getByRole('button', { name: 'Retomar fila' })).toBeVisible();
-    await expect(participantPage.getByText('A fila está pausada.', { exact: true })).toBeVisible();
-    await expect(participantPage.getByRole('button', { name: /Colocar na fila/i })).toBeDisabled();
-    await expect(participantPage.getByText(/Aguarde o DJ retomar/i)).toBeVisible();
+    await expect(participantPage.getByText(/DJ pausou novos pedidos/i)).toBeVisible();
+    await expect(participantPage.getByRole('button', { name: /Pedidos pausados pelo DJ/i })).toBeDisabled();
 
     await newParticipantPage.goto('/sala/' + code);
     await newParticipantPage.getByLabel(/Seu Nome/i).pressSequentially('Cantor Novo');
@@ -33,8 +32,8 @@ test('Host pausa e retoma a fila com atualização em tempo real', async ({ brow
 
     await hostPage.getByRole('button', { name: 'Retomar fila' }).click();
     await expect(hostPage.getByRole('button', { name: 'Pausar fila' })).toBeVisible();
-    await expect(participantPage.getByText('A fila está pausada.', { exact: true })).toHaveCount(0);
-    await expect(participantPage.getByRole('button', { name: /Colocar na fila/i })).toBeEnabled();
+    await expect(participantPage.getByText(/DJ pausou novos pedidos/i)).toHaveCount(0);
+    await expect(participantPage.getByText('Ao vivo', { exact: true })).toBeVisible();
 
     await newParticipantPage.getByRole('button', { name: /Entrar na sala/i }).click();
     await expect(newParticipantPage.getByText('Cantor Novo', { exact: true })).toBeVisible();
