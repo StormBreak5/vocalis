@@ -3,7 +3,14 @@ import { Client } from 'pg';
 import { createSessionClosureFixture, cleanupSessionClosureFixture, SessionClosureFixture } from './supabase/session-closure.helpers';
 import { setAuthenticatedUser } from './supabase/postgres-race-harness';
 
-const DB_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
+if (process.env.RUN_SUPABASE_INTEGRATION !== 'true') {
+  throw new Error('Integração Supabase requer RUN_SUPABASE_INTEGRATION=true.');
+}
+if (!process.env.SUPABASE_TEST_DB_URL) {
+  throw new Error('Integração Supabase requer SUPABASE_TEST_DB_URL local.');
+}
+
+const DB_URL = process.env.SUPABASE_TEST_DB_URL;
 
 describe('Preservação de estado e bloqueio pós-fechamento (US4)', () => {
   let client: Client;
