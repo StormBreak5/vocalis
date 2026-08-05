@@ -1,0 +1,19 @@
+.standalone { display: grid; gap: 20px; }
+.field { display: grid; gap: 8px; }
+.label { color: var(--neon-text); font-size: 14px; font-weight: 760; }
+.input {
+  min-height: 52px !important;
+  border: 1px solid var(--neon-line) !important;
+  border-radius: 14px !important;
+  background: oklch(0.18 0.035 255 / 72%) !important;
+  color: var(--neon-text) !important;
+  font-size: 16px !important;
+}
+.input::placeholder { color: var(--neon-text-muted); }
+.codeInput { font-family: "Roboto Mono Variable", monospace !important; font-size: 18px !important; font-weight: 750 !important; letter-spacing: 0.16em; text-align: center; text-transform: uppercase; }
+.help { color: var(--neon-text-secondary); font-size: 12px; line-height: 1.45; }
+.error { color: oklch(0.82 0.11 25); font-size: 12px; font-weight: 700; line-height: 1.4; }
+.formError { padding: 11px 12px; border: 1px solid oklch(0.71 0.16 25 / 28%); border-radius: 12px; background: oklch(0.71 0.16 25 / 8%); color: oklch(0.86 0.09 25); font-size: 13px; font-weight: 700; line-height: 1.4; }
+.submit { min-height: 54px !important; margin-top: 2px; border-radius: 16px !important; background: var(--neon-violet) !important; color: white !important; font-size: 16px !important; font-weight: 820 !important; transition: transform 160ms ease, filter 160ms ease, opacity 160ms ease !important; }
+.submit:hover:not(:disabled) { filter: brightness(1.08); }
+.submit:active:not(:disabled) { transform: scale(0.985); }

@@ -1,24 +1,5 @@
 .shell,
 .sheet {
-  --neon-bg: oklch(0.18 0.035 255);
-  --neon-bg-deep: oklch(0.145 0.03 258);
-  --neon-surface: oklch(0.255 0.055 270 / 82%);
-  --neon-surface-elevated: oklch(0.29 0.065 274 / 94%);
-  --neon-surface-soft: oklch(0.24 0.045 265 / 68%);
-  --neon-violet: oklch(0.58 0.23 293);
-  --neon-magenta: oklch(0.68 0.2 350);
-  --neon-cyan: oklch(0.81 0.14 200);
-  --neon-green: oklch(0.78 0.15 165);
-  --neon-amber: oklch(0.84 0.16 85);
-  --neon-red: oklch(0.71 0.16 25);
-  --neon-text: oklch(0.98 0.008 280);
-  --neon-text-secondary: oklch(0.79 0.04 260);
-  --neon-text-muted: oklch(0.69 0.035 260);
-  --neon-line: oklch(0.78 0.07 280 / 15%);
-  --neon-focus: var(--neon-cyan);
-  --neon-radius-sm: 12px;
-  --neon-radius-md: 18px;
-  --neon-radius-lg: 24px;
   color: var(--neon-text);
   font-family: "Roboto Variable", "Roboto", system-ui, sans-serif;
 }
@@ -122,7 +103,7 @@
   border: 1px solid oklch(0.68 0.2 350 / 32%);
   border-radius: var(--neon-radius-lg);
   background: linear-gradient(135deg, oklch(0.31 0.09 286 / 92%), oklch(0.24 0.06 260 / 92%));
-  box-shadow: 0 0 28px oklch(0.67 0.21 293 / 15%), 0 18px 48px oklch(0.06 0.04 270 / 42%);
+  box-shadow: var(--neon-shadow-glow), var(--neon-shadow-float);
 }
 .hero::after { content: ""; position: absolute; width: 150px; height: 150px; right: -56px; top: -72px; border-radius: 50%; background: radial-gradient(circle, oklch(0.68 0.2 350 / 22%), transparent 68%); pointer-events: none; }
 .heroEyebrow { gap: 7px; color: oklch(0.87 0.09 347); font-size: 11px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
@@ -207,14 +188,4 @@
 @media (max-width: 360px) {
   .queueRow { grid-template-columns: 26px minmax(0, 1fr); }
   .statusBadge { grid-column: 2; justify-self: start; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .shell *, .shell *::before, .shell *::after,
-  .sheet *, .sheet *::before, .sheet *::after,
-  .backdrop {
-    animation: none !important;
-    scroll-behavior: auto !important;
-    transition: none !important;
-  }
 }

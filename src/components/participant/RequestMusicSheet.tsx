@@ -7,6 +7,7 @@ import { RequestSongForm } from '@/src/components/queue/RequestSongForm';
 import { ParticipantActionDock, type ParticipantDockContext } from './ParticipantActionDock';
 import styles from './participant-neon.module.css';
 import formStyles from './participant-neon-form.module.css';
+import foundation from '@/src/components/vocalis/vocalis-neon-foundation.module.css';
 
 export function RequestMusicSheet({
   sessionId,
@@ -27,7 +28,7 @@ export function RequestMusicSheet({
         <Dialog.Backdrop className={styles.backdrop} />
         <Dialog.Popup
           ref={popupRef}
-          className={styles.sheet}
+          className={`${foundation.theme} ${styles.sheet}`}
           initialFocus={() => popupRef.current?.querySelector<HTMLInputElement>('input') ?? null}
         >
           <div className={styles.sheetHandle} aria-hidden="true" />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { joinSessionAction } from '@/src/application/participant/join-session.action';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
@@ -10,31 +10,41 @@ import { Label } from '@/src/components/ui/label';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { normalizeCode } from '@/src/domain/validators/session-code.validator';
+import { cn } from '@/src/lib/utils';
+import styles from './join-form.module.css';
 
 interface JoinFormProps {
   initialCode?: string;
+  variant?: 'embedded' | 'standalone';
 }
 
-export function JoinForm({ initialCode = '' }: JoinFormProps) {
+export function JoinForm({ initialCode = '', variant = 'embedded' }: JoinFormProps) {
   const [code, setCode] = useState(initialCode);
   const [displayName, setDisplayName] = useState('');
   const [isPending, startTransition] = useTransition();
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
+  const [formError, setFormError] = useState<string>();
+  const submissionInFlight = useRef(false);
   const router = useRouter();
   const { isOnline } = useOnlineStatus();
+  const isStandalone = variant === 'standalone';
 
-  const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCode(normalizeCode(e.target.value));
-    setErrors(prev => ({ ...prev, code: undefined }));
+  const handleCodeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setCode(normalizeCode(event.target.value));
+    setErrors(previous => ({ ...previous, code: undefined }));
+    setFormError(undefined);
   };
 
-  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDisplayName(e.target.value);
-    setErrors(prev => ({ ...prev, name: undefined }));
+  const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setDisplayName(event.target.value);
+    setErrors(previous => ({ ...previous, name: undefined }));
+    setFormError(undefined);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (submissionInFlight.current) return;
 
     if (!isOnline) {
       toast.error('Você está offline.');
@@ -42,31 +52,37 @@ export function JoinForm({ initialCode = '' }: JoinFormProps) {
     }
 
     setErrors({});
+    setFormError(undefined);
+    submissionInFlight.current = true;
 
     startTransition(async () => {
-      const result = await joinSessionAction(code, displayName);
+      try {
+        const result = await joinSessionAction(code, displayName);
 
-      if (result.ok) {
-        if (result.isRecovered) {
-          toast.success('Bem-vindo de volta!');
+        if (result.ok) {
+          if (result.isRecovered) toast.success('Bem-vindo de volta!');
+          router.push(`/sala/${code}`);
+          return;
         }
-        router.push(`/sala/${code}`);
-      } else {
+
         if (result.code === 'INVALID_CODE_FORMAT') {
-          setErrors(prev => ({ ...prev, code: result.userMessage }));
+          setErrors(previous => ({ ...previous, code: result.userMessage }));
         } else if (result.code === 'INVALID_NAME') {
-          setErrors(prev => ({ ...prev, name: result.userMessage }));
+          setErrors(previous => ({ ...previous, name: result.userMessage }));
         } else {
+          if (isStandalone) setFormError(result.userMessage);
           toast.error(result.userMessage);
         }
+      } finally {
+        submissionInFlight.current = false;
       }
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 w-full">
-      <div className="space-y-2">
-        <Label htmlFor="sessionCode" className="text-base font-semibold">
+    <form onSubmit={handleSubmit} className={cn('w-full', isStandalone ? styles.standalone : 'space-y-6')}>
+      <div className={isStandalone ? styles.field : 'space-y-2'}>
+        <Label htmlFor="sessionCode" className={isStandalone ? styles.label : 'text-base font-semibold'}>
           Código da Sala
         </Label>
         <Input
@@ -79,18 +95,25 @@ export function JoinForm({ initialCode = '' }: JoinFormProps) {
           autoCapitalize="characters"
           autoComplete="off"
           placeholder="Ex: AABB22"
-          className="min-h-[48px] text-lg uppercase font-mono tracking-widest text-center rounded-xl"
-          disabled={isPending || (!!initialCode && initialCode === code)} // Keep disabled if pre-filled maybe? No, let's keep it editable just in case, but usually we just leave it editable.
+          className={cn(
+            'min-h-[48px] text-lg uppercase font-mono tracking-widest text-center rounded-xl',
+            isStandalone && styles.input,
+            isStandalone && styles.codeInput,
+          )}
+          disabled={isPending || (!!initialCode && initialCode === code)}
+          aria-invalid={Boolean(errors.code)}
+          aria-describedby={isStandalone ? (errors.code ? 'sessionCode-help sessionCode-error' : 'sessionCode-help') : (errors.code ? 'sessionCode-error' : undefined)}
         />
+        {isStandalone && <p id="sessionCode-help" className={styles.help}>Use o código de seis caracteres exibido pelo DJ.</p>}
         {errors.code && (
-          <p role="alert" className="text-sm text-destructive font-medium mt-1">
+          <p id="sessionCode-error" role="alert" className={isStandalone ? styles.error : 'text-sm text-destructive font-medium mt-1'}>
             {errors.code}
           </p>
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="displayName" className="text-base font-semibold">
+      <div className={isStandalone ? styles.field : 'space-y-2'}>
+        <Label htmlFor="displayName" className={isStandalone ? styles.label : 'text-base font-semibold'}>
           Seu Nome (ou Apelido)
         </Label>
         <Input
@@ -100,26 +123,35 @@ export function JoinForm({ initialCode = '' }: JoinFormProps) {
           onChange={handleNameChange}
           maxLength={32}
           placeholder="Como quer ser chamado?"
-          className="min-h-[48px] text-lg rounded-xl"
+          className={cn('min-h-[48px] text-lg rounded-xl', isStandalone && styles.input)}
           disabled={isPending}
+          aria-invalid={Boolean(errors.name)}
+          aria-describedby={isStandalone ? (errors.name ? 'displayName-help displayName-error' : 'displayName-help') : (errors.name ? 'displayName-error' : undefined)}
         />
+        {isStandalone && <p id="displayName-help" className={styles.help}>Seu apelido ficará visível para as pessoas na sala.</p>}
         {errors.name && (
-          <p role="alert" className="text-sm text-destructive font-medium mt-1">
+          <p id="displayName-error" role="alert" className={isStandalone ? styles.error : 'text-sm text-destructive font-medium mt-1'}>
             {errors.name}
           </p>
         )}
       </div>
+
+      {isStandalone && formError && <p role="alert" className={styles.formError}>{formError}</p>}
 
       <Button
         type="submit"
         size="lg"
         disabled={isPending || !isOnline}
         aria-label={!isOnline ? 'Ação indisponível offline' : 'Entrar na sala'}
-        className="w-full min-h-[48px] text-lg font-bold rounded-xl transition-transform active:scale-[0.98]"
+        aria-busy={isPending}
+        className={cn(
+          'w-full min-h-[48px] text-lg font-bold rounded-xl transition-transform active:scale-[0.98]',
+          isStandalone && styles.submit,
+        )}
       >
         {isPending ? (
           <>
-            <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+            <Loader2 className="mr-2 h-6 w-6 animate-spin" aria-hidden="true" />
             Entrando...
           </>
         ) : (
