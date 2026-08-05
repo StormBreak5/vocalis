@@ -14,6 +14,7 @@ import { SessionContextStrip, type SessionContextState } from './SessionContextS
 import type { ConnectionVisualState } from './ConnectionStatusPill';
 import type { ParticipantDockContext } from './ParticipantActionDock';
 import styles from './participant-neon.module.css';
+import foundation from '@/src/components/vocalis/vocalis-neon-foundation.module.css';
 import './participant-global.module.css';
 
 export function ParticipantQueueExperience({
@@ -54,7 +55,7 @@ export function ParticipantQueueExperience({
   else if (sessionStatus === 'paused') dockContext = 'paused';
 
   return (
-    <main className={styles.shell} data-participant-neon>
+    <main className={`${foundation.theme} ${styles.shell}`} data-participant-neon>
       <div className={styles.content}>
         <ParticipantCompactHeader
           roomCode={roomCode}

@@ -1,0 +1,42 @@
+.theme {
+  --neon-bg: oklch(0.18 0.035 255);
+  --neon-bg-deep: oklch(0.145 0.03 258);
+  --neon-surface: oklch(0.255 0.055 270 / 82%);
+  --neon-surface-elevated: oklch(0.29 0.065 274 / 94%);
+  --neon-surface-soft: oklch(0.24 0.045 265 / 68%);
+  --neon-violet: oklch(0.58 0.23 293);
+  --neon-magenta: oklch(0.68 0.2 350);
+  --neon-cyan: oklch(0.81 0.14 200);
+  --neon-green: oklch(0.78 0.15 165);
+  --neon-amber: oklch(0.84 0.16 85);
+  --neon-red: oklch(0.71 0.16 25);
+  --neon-text: oklch(0.98 0.008 280);
+  --neon-text-secondary: oklch(0.79 0.04 260);
+  --neon-text-muted: oklch(0.69 0.035 260);
+  --neon-line: oklch(0.78 0.07 280 / 15%);
+  --neon-focus: var(--neon-cyan);
+  --neon-radius-sm: 12px;
+  --neon-radius-md: 18px;
+  --neon-radius-lg: 24px;
+  --neon-shadow-float: 0 18px 48px oklch(0.06 0.04 270 / 42%);
+  --neon-shadow-glow: 0 0 28px oklch(0.67 0.21 293 / 15%);
+  --neon-safe-top: max(16px, env(safe-area-inset-top));
+  --neon-safe-bottom: max(16px, env(safe-area-inset-bottom));
+  color: var(--neon-text);
+  font-family: "Roboto Variable", "Roboto", system-ui, sans-serif;
+}
+
+.theme :is(a, button, input):focus-visible {
+  outline: 3px solid var(--neon-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme *,
+  .theme *::before,
+  .theme *::after {
+    animation: none !important;
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

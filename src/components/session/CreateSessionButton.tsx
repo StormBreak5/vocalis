@@ -7,8 +7,10 @@ import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { createSessionAction } from '@/src/application/session/create-session.action';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
+import styles from './create-session-button.module.css';
+import { cn } from '@/src/lib/utils';
 
-export function CreateSessionButton() {
+export function CreateSessionButton({ variant = 'default' }: { variant?: 'default' | 'neon' }) {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const { isOnline } = useOnlineStatus();
@@ -33,8 +35,9 @@ export function CreateSessionButton() {
     <Button
       onClick={handleCreateSession}
       disabled={isPending || !isOnline}
-      className="w-full min-h-[48px] text-lg font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform active:scale-[0.98]"
-      aria-label={!isOnline ? 'Ação indisponível offline' : 'Criar nova sala de karaokê'}
+      className={cn("w-full min-h-[48px] text-lg font-semibold rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg transition-transform active:scale-[0.98]", variant === 'neon' && styles.neon)}
+      aria-label={!isOnline ? 'Ação indisponível offline' : isPending ? 'Criando sala...' : 'Criar nova sala de karaokê'}
+      aria-busy={isPending}
       size="lg"
     >
       {isPending ? (
@@ -45,7 +48,7 @@ export function CreateSessionButton() {
       ) : (
         <>
           <Plus className="mr-2 h-6 w-6" />
-          Criar Nova Sala
+          {variant === 'neon' ? 'Criar sala' : 'Criar Nova Sala'}
         </>
       )}
     </Button>
