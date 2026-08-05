@@ -32,6 +32,11 @@ export async function requestSong(
   songTitle: string,
   artist: string,
 ) {
+  const openRequestButton = page.getByRole('button', { name: 'Pedir música' });
+  if (await openRequestButton.isVisible().catch(() => false)) {
+    await openRequestButton.click();
+  }
+
   await page.getByPlaceholder(/Ex: Evidências/i).fill(songTitle);
   await page.getByPlaceholder(/Ex: Chitãozinho/i).fill(artist);
   await page.getByRole('button', { name: /Colocar na fila/i }).click();

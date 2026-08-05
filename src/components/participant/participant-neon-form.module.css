@@ -1,0 +1,13 @@
+.form > div {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.form > div > h2 { display: none; }
+.form label { color: oklch(0.79 0.04 260); font-size: 12px; font-weight: 720; }
+.form input { min-height: 52px; border-color: oklch(0.78 0.07 280 / 15%); border-radius: 14px; background: oklch(0.18 0.035 255 / 80%); color: oklch(0.98 0.008 280); }
+.form input::placeholder { color: oklch(0.69 0.035 260); }
+.form button[type="submit"] { min-height: 54px; border-radius: 16px; background: oklch(0.58 0.23 293); color: white; font-size: 15px; font-weight: 820; }

@@ -51,11 +51,8 @@ test.describe('US4: bloqueio de escritas após closed', () => {
       await expect(closedDialogHeading(participantPage)).toBeVisible();
 
       await expect(
-        participantPage.getByRole('button', {
-          name: /Colocar na fila/i,
-          includeHidden: true,
-        }),
-      ).toBeDisabled();
+        participantPage.getByRole('button', { name: /Pedir música|Colocar na fila/i, includeHidden: true }),
+      ).toHaveCount(0);
 
       const queueId = queueBefore?.id;
       if (!queueId) throw new Error('Queue entry não encontrada no E2E.');

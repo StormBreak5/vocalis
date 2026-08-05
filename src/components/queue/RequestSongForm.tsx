@@ -15,9 +15,19 @@ interface RequestSongFormProps {
   sessionId: string;
   hasActiveSong?: boolean;
   isOffline?: boolean;
+  showHeading?: boolean;
+  showContextMessages?: boolean;
+  onSuccess?: () => void;
 }
 
-export function RequestSongForm({ sessionId, hasActiveSong = false, isOffline = false }: RequestSongFormProps) {
+export function RequestSongForm({
+  sessionId,
+  hasActiveSong = false,
+  isOffline = false,
+  showHeading = true,
+  showContextMessages = true,
+  onSuccess,
+}: RequestSongFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { snapshot, newQueueEntriesAllowed } = useSessionLifecycleContext();
   const isPaused = snapshot?.status === 'paused';
@@ -44,6 +54,7 @@ export function RequestSongForm({ sessionId, hasActiveSong = false, isOffline = 
           description: 'Seu pedido foi colocado na fila.',
         });
         form.reset();
+        onSuccess?.();
       } else {
         toast.error('Não foi possível adicionar', {
           description: response.userMessage,
@@ -62,27 +73,27 @@ export function RequestSongForm({ sessionId, hasActiveSong = false, isOffline = 
 
   return (
     <div className="bg-card p-6 rounded-xl border shadow-sm">
-      <h2 className="text-xl font-bold mb-4">Pedir Música</h2>
+      {showHeading && <h2 className="text-xl font-bold mb-4">Pedir Música</h2>}
 
-      {hasActiveSong && (
+      {showContextMessages && hasActiveSong && (
         <div className="mb-4 p-3 bg-primary/10 text-primary rounded-md text-sm border border-primary/20">
           🎤 Você já tem uma música na fila! Aguarde sua vez.
         </div>
       )}
 
-      {isOffline && (
+      {showContextMessages && isOffline && (
         <div className="mb-4 p-3 bg-destructive/10 text-destructive rounded-md text-sm border border-destructive/20">
           📶 Sem conexão. Reconecte para pedir música.
         </div>
       )}
 
-      {isPaused && (
+      {showContextMessages && isPaused && (
         <div className="mb-4 p-3 bg-blue-900/50 text-blue-200 rounded-md text-sm border border-blue-800" role="status">
           A fila está pausada. Aguarde o DJ retomar para pedir uma música.
         </div>
       )}
 
-      {isClosed && (
+      {showContextMessages && isClosed && (
         <div className="mb-4 p-3 bg-muted text-muted-foreground rounded-md text-sm border" role="status">
           Esta sala foi encerrada. Não é possível fazer novos pedidos.
         </div>
