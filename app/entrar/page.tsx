@@ -4,8 +4,33 @@ import Link from 'next/link';
 import { VocalisNeonShell } from '@/src/components/vocalis/VocalisNeonShell';
 import { VocalisBrand } from '@/src/components/vocalis/VocalisBrand';
 import styles from '@/src/components/vocalis/vocalis-marketing.module.css';
+import {
+  normalizeCode,
+  validateSessionCode,
+} from '@/src/domain/validators/session-code.validator';
 
-export default function EntrarPage() {
+type EntrarSearchParams = Promise<{
+  codigo?: string | string[];
+}>;
+
+export function initialCodeFromSearchParam(value: string | readonly string[] | undefined): string {
+  if (typeof value !== 'string') return '';
+  const normalized = normalizeCode(value);
+  try {
+    return validateSessionCode(normalized);
+  } catch {
+    return '';
+  }
+}
+
+export default async function EntrarPage({
+  searchParams = Promise.resolve({}),
+}: {
+  searchParams?: EntrarSearchParams;
+} = {}) {
+  const query = await searchParams;
+  const initialCode = initialCodeFromSearchParam(query.codigo);
+
   return (
     <VocalisNeonShell variant="entry">
       <div className={styles.entryGrid}>
@@ -30,7 +55,7 @@ export default function EntrarPage() {
             <h2 id="join-panel-title">Pronto para cantar?</h2>
             <p>Entre com o c&oacute;digo da sala e escolha como quer ser chamado.</p>
           </header>
-          <JoinForm variant="standalone" />
+          <JoinForm variant="standalone" initialCode={initialCode} />
         </section>
       </div>
     </VocalisNeonShell>
