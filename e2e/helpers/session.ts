@@ -44,8 +44,20 @@ export async function requestSong(
 }
 
 export async function confirmSessionClosure(page: Page) {
-  await page.getByRole('button', { name: /Encerrar sala/i }).click();
+  await openHostSessionControls(page);
+  await visibleSessionCloseButton(page).click();
   await page.getByRole('button', { name: /Confirmar encerramento/i }).click();
+}
+
+export function visibleSessionCloseButton(page: Page) {
+  return page.getByRole('button', { name: /Encerrar sala/i }).filter({ visible: true });
+}
+
+export async function openHostSessionControls(page: Page) {
+  const closeButton = visibleSessionCloseButton(page);
+  if (await closeButton.count()) return;
+  await page.getByRole('button', { name: /Abrir controles da sessão/i }).click();
+  await expect(closeButton).toBeVisible();
 }
 
 export function closedDialogHeading(page: Page) {

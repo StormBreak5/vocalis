@@ -1,68 +1,17 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useState } from 'react';
 import { Users } from 'lucide-react';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
-import { createClient } from '@/src/infrastructure/supabase/client';
-import { Database } from '@/src/infrastructure/supabase/database.types';
-import { Participant } from '@/src/domain/participant.types';
+import type { Participant } from '@/src/domain/participant.types';
 import { formatParticipantLabel } from '@/src/domain/participant.utils';
-
-type ParticipantRow = Database['public']['Tables']['participants']['Row'];
+import { useSessionParticipants } from '@/src/hooks/useSessionParticipants';
 
 interface ParticipantsListProps {
   sessionId: string;
   initialParticipants: Participant[];
 }
 
-function mapParticipantRow(row: ParticipantRow): Participant {
-  return {
-    id: row.id,
-    sessionId: row.session_id,
-    displayName: row.display_name,
-    disambiguationIndex: row.disambiguation_index,
-    joinedAt: row.joined_at,
-    lastSeen: row.last_seen,
-    createdAt: row.created_at,
-  };
-}
-
 export function ParticipantsList({ sessionId, initialParticipants }: ParticipantsListProps) {
-  const [participants, setParticipants] = useState(initialParticipants);
-
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel(`participants:${sessionId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'participants',
-          filter: `session_id=eq.${sessionId}`,
-        },
-        (payload: RealtimePostgresChangesPayload<ParticipantRow>) => {
-          if (payload.eventType === 'INSERT') {
-            const participant = mapParticipantRow(payload.new);
-            setParticipants((current) => current.some(({ id }) => id === participant.id)
-              ? current
-              : [...current, participant].sort((a, b) => a.joinedAt.localeCompare(b.joinedAt)));
-          } else if (payload.eventType === 'UPDATE') {
-            const participant = mapParticipantRow(payload.new);
-            setParticipants((current) => current.map((item) =>
-              item.id === participant.id ? participant : item));
-          } else if (payload.eventType === 'DELETE') {
-            setParticipants((current) => current.filter(({ id }) => id !== payload.old.id));
-          }
-        },
-      )
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [sessionId]);
+  const participants = useSessionParticipants(sessionId, initialParticipants);
 
   return (
     <section className="mt-12 pt-8 border-t">

@@ -46,7 +46,13 @@ describe('ParticipantQueueExperience', () => {
     lifecycleStatus = 'active';
     lifecyclePhase = 'connected';
     vi.mocked(useOnlineStatus).mockImplementation(() => ({ isOnline: online }));
-    vi.mocked(useActiveQueue).mockImplementation(() => ({ queue, isLoading: false, isOffline: queueOffline, refresh: vi.fn() }));
+    vi.mocked(useActiveQueue).mockImplementation(() => ({
+      queue,
+      isLoading: false,
+      isOffline: queueOffline,
+      refresh: vi.fn(),
+      resync: vi.fn(),
+    }));
     vi.mocked(useSessionLifecycleContext).mockImplementation(() => ({
       sessionId: 'session-1', snapshot: { id: 'session-1', code: 'KARA89', status: lifecycleStatus, closedAt: null },
       phase: lifecyclePhase, epoch: 1, writesAllowed: lifecycleStatus !== 'closed' && lifecyclePhase === 'connected',

@@ -11,6 +11,7 @@ vi.mock('@/src/infrastructure/supabase/queries/session.queries', () => ({
 vi.mock('@/src/infrastructure/supabase/queries/participant.queries', () => ({ getParticipantsBySessionId: vi.fn().mockResolvedValue([]) }));
 vi.mock('next/navigation', () => ({ redirect: vi.fn(() => { throw new Error('NEXT_REDIRECT'); }) }));
 vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({ SessionLifecycleProvider: ({ children }: { children: React.ReactNode }) => children }));
+vi.mock('@/src/components/dj/DjDashboardExperience', () => ({ DjDashboardExperience: () => <button>Pausar fila</button> }));
 vi.mock('@/src/components/session/SessionStatusToggle', () => ({ SessionStatusToggle: () => <button>Pausar fila</button> }));
 vi.mock('@/src/components/session/CloseSessionButton', () => ({ CloseSessionButton: () => <button>Encerrar sala</button> }));
 vi.mock('@/src/components/session/SessionCodeDisplay', () => ({ SessionCodeDisplay: () => null }));

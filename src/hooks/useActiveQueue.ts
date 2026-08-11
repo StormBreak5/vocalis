@@ -30,8 +30,8 @@ export function useActiveQueue(sessionId: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
 
-  const fetchInitialQueue = useCallback(async () => {
-    setIsLoading(true);
+  const loadQueue = useCallback(async (showLoading: boolean) => {
+    if (showLoading) setIsLoading(true);
     try {
       const response = await listActiveQueueAction(sessionId);
       if (response.ok) {
@@ -48,6 +48,9 @@ export function useActiveQueue(sessionId: string) {
       setIsLoading(false);
     }
   }, [sessionId]);
+
+  const fetchInitialQueue = useCallback(() => loadQueue(true), [loadQueue]);
+  const resync = useCallback(() => loadQueue(false), [loadQueue]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -146,5 +149,5 @@ export function useActiveQueue(sessionId: string) {
     };
   }, [sessionId, fetchInitialQueue]);
 
-  return { queue, isLoading, isOffline, refresh: fetchInitialQueue };
+  return { queue, isLoading, isOffline, refresh: fetchInitialQueue, resync };
 }
