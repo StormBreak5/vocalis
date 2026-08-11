@@ -27,8 +27,8 @@ test('Host pausa e retoma a fila com atualização em tempo real', async ({ brow
     await expect(newParticipantPage.getByText(/fila está pausada/i)).toBeVisible();
     await expect(newParticipantPage.getByRole('button', { name: /Entrar na sala/i })).toBeVisible();
 
-    await hostPage.getByRole('button', { name: 'Chamar' }).click();
-    await expect(hostPage.getByRole('button', { name: 'Play' })).toBeVisible();
+    await hostPage.getByRole('button', { name: /Chamar Cantor Atual/ }).click();
+    await expect(hostPage.getByRole('button', { name: /Iniciar Cantor Atual/ })).toBeVisible();
 
     await hostPage.getByRole('button', { name: 'Retomar fila' }).click();
     await expect(hostPage.getByRole('button', { name: 'Pausar fila' })).toBeVisible();

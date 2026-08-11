@@ -35,7 +35,13 @@ async function waitForStatusUpdate(
   return outcome;
 }
 
-export function SessionStatusToggle() {
+export function SessionStatusToggle({
+  disabled = false,
+  appearance = 'default',
+}: {
+  disabled?: boolean;
+  appearance?: 'default' | 'neon';
+} = {}) {
   const { sessionId, snapshot, phase, writesAllowed, dispatch } = useSessionLifecycleContext();
   const [isUpdating, setIsUpdating] = useState(false);
   const requestInFlightRef = useRef(false);
@@ -46,7 +52,7 @@ export function SessionStatusToggle() {
   const isClosed = status === 'closed';
   const isLoading = phase === 'loading' || !snapshot;
   const newStatus = isPaused ? 'active' : 'paused';
-  const isDisabled = isUpdating || isLoading || isClosed || !writesAllowed;
+  const isDisabled = disabled || isUpdating || isLoading || isClosed || !writesAllowed;
 
   const applySnapshot = (nextSnapshot: SessionStatusSnapshot) => {
     dispatch({ type: 'SESSION_UPDATED', snapshot: nextSnapshot });
@@ -113,7 +119,14 @@ export function SessionStatusToggle() {
       onClick={() => void handleToggle()}
       disabled={isDisabled}
       aria-busy={isUpdating}
-      className="w-full sm:w-auto min-h-[48px]"
+      className={appearance === 'neon'
+        ? [
+            'w-full min-h-[48px] rounded-[14px] border px-4 font-bold',
+            'border-[var(--neon-line)] bg-[var(--neon-surface-elevated)] text-[var(--neon-text)]',
+            'hover:bg-[color-mix(in_oklch,var(--neon-violet)_18%,var(--neon-surface-elevated))]',
+            'disabled:opacity-55 disabled:cursor-not-allowed',
+          ].join(' ')
+        : 'w-full sm:w-auto min-h-[48px]'}
     >
       {isUpdating || isLoading ? (
         <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden="true" />

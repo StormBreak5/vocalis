@@ -57,6 +57,8 @@ Inicie o servidor de desenvolvimento:
 npm run dev
 ```
 
+Para auditorias visuais com build de produção, use `npm run app:local:production`. Não use `npm run build` seguido de `npm run start` para inspeção local: o executor dedicado valida e injeta exclusivamente o Supabase local, sem resetar os dados existentes.
+
 A aplicação estará disponível em: **[http://localhost:3000](http://localhost:3000)**
 
 ## 🗄️ Estrutura de Dados Resumida

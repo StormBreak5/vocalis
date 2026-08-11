@@ -3,6 +3,8 @@ import { test, expect } from '@playwright/test';
 import {
   closedDialogHeading,
   createSession,
+  openHostSessionControls,
+  visibleSessionCloseButton,
 } from './helpers/session';
 
 const evidencePath =
@@ -50,7 +52,8 @@ test.describe('Session closure under Slow 3G', () => {
         await route.continue();
       });
 
-      await hostPage.getByRole('button', { name: /Encerrar sala/i }).click();
+      await openHostSessionControls(hostPage);
+      await visibleSessionCloseButton(hostPage).click();
       const confirmButton = hostPage.getByRole('button', {
         name: /Confirmar encerramento/i,
       });

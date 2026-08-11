@@ -4,6 +4,8 @@ import {
   confirmSessionClosure,
   createSession,
   joinSession,
+  openHostSessionControls,
+  visibleSessionCloseButton,
 } from './helpers/session';
 
 test.describe('Host Close Session', () => {
@@ -14,7 +16,8 @@ test.describe('Host Close Session', () => {
     try {
       const hostPage = await hostContext.newPage();
       const code = await createSession(hostPage);
-      const closeButton = hostPage.getByRole('button', { name: /Encerrar sala/i });
+      await openHostSessionControls(hostPage);
+      const closeButton = visibleSessionCloseButton(hostPage);
 
       await closeButton.click();
       const confirmationDialog = hostPage.getByRole('alertdialog', {

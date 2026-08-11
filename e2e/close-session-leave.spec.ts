@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { confirmSessionClosure } from './helpers/session';
 
 test.describe('Navegação após encerramento (US5)', () => {
   test('O participante clica para voltar ao início e a navegação ocorre em menos de 5 segundos', async ({ browser }) => {
@@ -24,8 +25,7 @@ test.describe('Navegação após encerramento (US5)', () => {
 
     // Host encerra
     await hostPage.bringToFront();
-    await hostPage.getByRole('button', { name: /Encerrar sala/i }).click();
-    await hostPage.getByRole('button', { name: /Confirmar encerramento/i }).click();
+    await confirmSessionClosure(hostPage);
 
     // Participante vê a modal e clica em Voltar
     await p1Page.bringToFront();

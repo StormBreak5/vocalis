@@ -43,6 +43,11 @@
   padding: var(--neon-safe-top) 18px var(--neon-safe-bottom);
 }
 
+.shell[data-vocalis-neon="dj"] .frame {
+  width: min(100%, 1440px);
+  padding: 0;
+}
+
 .homeGrid,
 .entryGrid {
   min-height: calc(100dvh - var(--neon-safe-top) - var(--neon-safe-bottom));
