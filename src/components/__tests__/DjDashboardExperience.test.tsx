@@ -7,12 +7,14 @@ import { DjDashboardExperience } from '@/src/components/dj/DjDashboardExperience
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { useSessionParticipants } from '@/src/hooks/useSessionParticipants';
+import { useSessionPresence } from '@/src/hooks/useSessionPresence';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { updateQueueStatusAction } from '@/src/application/queue/update-queue-status.action';
 
 vi.mock('@/src/hooks/useActiveQueue', () => ({ useActiveQueue: vi.fn() }));
 vi.mock('@/src/hooks/useOnlineStatus', () => ({ useOnlineStatus: vi.fn() }));
 vi.mock('@/src/hooks/useSessionParticipants', () => ({ useSessionParticipants: vi.fn() }));
+vi.mock('@/src/hooks/useSessionPresence', () => ({ useSessionPresence: vi.fn() }));
 vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({ useSessionLifecycleContext: vi.fn() }));
 vi.mock('@/src/application/queue/update-queue-status.action', () => ({ updateQueueStatusAction: vi.fn() }));
 vi.mock('@/src/application/session/update-session-status.action', () => ({ updateSessionStatusAction: vi.fn() }));
@@ -81,6 +83,7 @@ describe('DjDashboardExperience', () => {
         lastSeen: '2026-08-10T21:03:00Z', createdAt: '2026-08-10T21:03:00Z',
       },
     ]);
+    vi.mocked(useSessionPresence).mockReturnValue(new Set(['participant-1']));
     vi.mocked(useSessionLifecycleContext).mockImplementation(() => ({
       sessionId: SESSION_ID,
       snapshot: { id: SESSION_ID, code: 'NEON42', status, closedAt: null },
@@ -189,6 +192,16 @@ describe('DjDashboardExperience', () => {
     expect(document.activeElement).toBe(queueTab);
     await user.keyboard('{Enter}');
     expect(queueTab.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('preserva o participante registrado sem contá-lo como online', () => {
+    vi.mocked(useSessionPresence).mockReturnValue(new Set());
+    renderDashboard();
+
+    expect(screen.getAllByText('Marina Costa').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Offline').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('0 online · 1 registrados').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('0 participantes online').length).toBeGreaterThan(0);
   });
 
   it('preserva títulos longos e restaura foco operacional após a resposta', async () => {

@@ -13,6 +13,7 @@ vi.mock('next/navigation', () => ({ useRouter: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock('@/src/application/participant/join-session.action', () => ({ joinSessionAction: vi.fn() }));
 vi.mock('@/src/application/session/create-session.action', () => ({ createSessionAction: vi.fn() }));
+vi.mock('@/src/lib/browser-navigation', () => ({ replaceDocument: vi.fn() }));
 
 const codeLabel = 'C\u00f3digo da Sala';
 const nameLabel = /Seu Nome/i;

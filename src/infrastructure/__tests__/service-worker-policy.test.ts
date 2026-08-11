@@ -20,5 +20,6 @@ describe('Service Worker Policy', () => {
 
     // A resposta não deve ser cacheada se tiver Cache-Control "private"
     expect(swContent).toMatch(/networkResponse\.headers\.get\('Cache-Control'\).*includes\('private'\)/);
+    expect(swContent).not.toMatch(/SHELL_ASSETS\s*=\s*\[\s*['"]\/['"]/);
   });
 });

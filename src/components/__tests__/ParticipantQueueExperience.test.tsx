@@ -5,12 +5,14 @@ import userEvent from '@testing-library/user-event';
 import { ParticipantQueueExperience } from '@/src/components/participant/ParticipantQueueExperience';
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
+import { useTrackParticipantPresence } from '@/src/hooks/useSessionPresence';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { cancelQueueEntryAction } from '@/src/application/queue/cancel-queue-entry.action';
 import type { ActiveQueueEntry } from '@/src/domain/queue.types';
 
 vi.mock('@/src/hooks/useActiveQueue', () => ({ useActiveQueue: vi.fn() }));
 vi.mock('@/src/hooks/useOnlineStatus', () => ({ useOnlineStatus: vi.fn() }));
+vi.mock('@/src/hooks/useSessionPresence', () => ({ useTrackParticipantPresence: vi.fn() }));
 vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({ useSessionLifecycleContext: vi.fn() }));
 vi.mock('@/src/application/queue/cancel-queue-entry.action', () => ({ cancelQueueEntryAction: vi.fn() }));
 vi.mock('@/src/application/queue/create-queue-entry.action', () => ({ createQueueEntryAction: vi.fn() }));
@@ -46,6 +48,7 @@ describe('ParticipantQueueExperience', () => {
     lifecycleStatus = 'active';
     lifecyclePhase = 'connected';
     vi.mocked(useOnlineStatus).mockImplementation(() => ({ isOnline: online }));
+    vi.mocked(useTrackParticipantPresence).mockReturnValue(undefined);
     vi.mocked(useActiveQueue).mockImplementation(() => ({
       queue,
       isLoading: false,

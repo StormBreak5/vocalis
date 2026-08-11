@@ -11,6 +11,7 @@ import { useSessionLifecycleContext } from '@/src/components/session/SessionLife
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { useSessionParticipants } from '@/src/hooks/useSessionParticipants';
+import { useSessionPresence } from '@/src/hooks/useSessionPresence';
 import { DjSessionHeader, type DjConnectionState } from './DjSessionHeader';
 import {
   DjCompactQueueList,
@@ -113,6 +114,8 @@ export function DjDashboardExperience({
   const lifecycle = useSessionLifecycleContext();
   const { queue, isLoading, isOffline: queueIsOffline, resync } = useActiveQueue(sessionId);
   const participants = useSessionParticipants(sessionId, initialParticipants);
+  const onlineParticipantIds = useSessionPresence(sessionId);
+  const onlineParticipantCount = participants.filter(({ id }) => onlineParticipantIds.has(id)).length;
   const { isOnline } = useOnlineStatus();
 
   const isOffline = !isOnline || queueIsOffline || lifecycle.phase === 'offline' || lifecycle.phase === 'error';
@@ -181,8 +184,8 @@ export function DjDashboardExperience({
           />
         </main>
         <aside className={styles.sidebar}>
-          <DjSessionMetrics queueCount={queue.length} participantCount={participants.length} />
-          <DjParticipantsPanel participants={participants} />
+          <DjSessionMetrics queueCount={queue.length} participantCount={onlineParticipantCount} />
+          <DjParticipantsPanel participants={participants} onlineParticipantIds={onlineParticipantIds} />
           <DjRealtimeNote />
         </aside>
       </div>
@@ -192,7 +195,7 @@ export function DjDashboardExperience({
         <Tabs.Root className={styles.mobileTabs} defaultValue="queue">
           <Tabs.List className={styles.tabList} aria-label="Conteúdo do painel">
             <Tabs.Tab className={styles.tab} value="queue" data-dj-focus-fallback>Fila · {queue.length}</Tabs.Tab>
-            <Tabs.Tab className={styles.tab} value="participants">Participantes · {participants.length}</Tabs.Tab>
+            <Tabs.Tab className={styles.tab} value="participants">Participantes · {onlineParticipantCount}</Tabs.Tab>
           </Tabs.List>
           <Tabs.Panel className={styles.tabPanel} value="queue" keepMounted data-empty-dock={!hasDock || undefined}>
             <QueueOperationStack
@@ -205,8 +208,8 @@ export function DjDashboardExperience({
             />
           </Tabs.Panel>
           <Tabs.Panel className={styles.tabPanel} value="participants" keepMounted data-empty-dock={!hasDock || undefined}>
-            <DjSessionMetrics queueCount={queue.length} participantCount={participants.length} />
-            <DjParticipantsPanel participants={participants} />
+            <DjSessionMetrics queueCount={queue.length} participantCount={onlineParticipantCount} />
+            <DjParticipantsPanel participants={participants} onlineParticipantIds={onlineParticipantIds} />
           </Tabs.Panel>
         </Tabs.Root>
         {hasDock && (

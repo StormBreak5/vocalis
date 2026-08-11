@@ -1,7 +1,6 @@
 'use client';
 
-import { useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRef, useState } from 'react';
 import { joinSessionAction } from '@/src/application/participant/join-session.action';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { Button } from '@/src/components/ui/button';
@@ -11,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { normalizeCode } from '@/src/domain/validators/session-code.validator';
 import { cn } from '@/src/lib/utils';
+import { replaceDocument } from '@/src/lib/browser-navigation';
 import styles from './join-form.module.css';
 
 interface JoinFormProps {
@@ -21,11 +21,10 @@ interface JoinFormProps {
 export function JoinForm({ initialCode = '', variant = 'embedded' }: JoinFormProps) {
   const [code, setCode] = useState(initialCode);
   const [displayName, setDisplayName] = useState('');
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const [errors, setErrors] = useState<{ code?: string; name?: string }>({});
   const [formError, setFormError] = useState<string>();
   const submissionInFlight = useRef(false);
-  const router = useRouter();
   const { isOnline } = useOnlineStatus();
   const isStandalone = variant === 'standalone';
 
@@ -54,14 +53,20 @@ export function JoinForm({ initialCode = '', variant = 'embedded' }: JoinFormPro
     setErrors({});
     setFormError(undefined);
     submissionInFlight.current = true;
+    setIsPending(true);
 
-    startTransition(async () => {
+    void (async () => {
+      let timeoutId: number | undefined;
+
       try {
-        const result = await joinSessionAction(code, displayName);
+        const timeout = new Promise<never>((_, reject) => {
+          timeoutId = window.setTimeout(() => reject(new Error('JOIN_SESSION_TIMEOUT')), 20_000);
+        });
+        const result = await Promise.race([joinSessionAction(code, displayName), timeout]);
 
         if (result.ok) {
           if (result.isRecovered) toast.success('Bem-vindo de volta!');
-          router.push(`/sala/${code}`);
+          replaceDocument(`/sala/${code}`);
           return;
         }
 
@@ -73,10 +78,16 @@ export function JoinForm({ initialCode = '', variant = 'embedded' }: JoinFormPro
           if (isStandalone) setFormError(result.userMessage);
           toast.error(result.userMessage);
         }
+      } catch {
+        const message = 'A entrada demorou demais. Atualize a página para confirmar antes de tentar novamente.';
+        if (isStandalone) setFormError(message);
+        toast.error(message);
       } finally {
+        window.clearTimeout(timeoutId);
         submissionInFlight.current = false;
+        setIsPending(false);
       }
-    });
+    })();
   };
 
   return (

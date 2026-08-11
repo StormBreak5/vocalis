@@ -3,6 +3,7 @@ import "@fontsource-variable/roboto/wght.css";
 import "@fontsource-variable/roboto-mono/wght.css";
 import { OfflineBanner } from "@/src/components/ui/OfflineBanner";
 import { Toaster } from "@/src/components/ui/sonner";
+import { ServiceWorkerManager } from "@/src/components/pwa/ServiceWorkerManager";
 import "./globals.css";
 
 
@@ -41,24 +42,7 @@ export default function RootLayout({
         <OfflineBanner />
         {children}
         <Toaster position="top-center" richColors theme="dark" />
-        {process.env.NODE_ENV === "production" && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                if ('serviceWorker' in navigator && !window.__SW_REGISTERED) {
-                  window.__SW_REGISTERED = true;
-                  window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                      console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    }, function(err) {
-                      console.log('ServiceWorker registration failed: ', err);
-                    });
-                  });
-                }
-              `,
-            }}
-          />
-        )}
+        <ServiceWorkerManager />
       </body>
     </html>
   );

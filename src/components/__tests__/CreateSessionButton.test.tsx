@@ -3,24 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { CreateSessionButton } from '../session/CreateSessionButton';
 import * as useOnlineStatusModule from '@/src/hooks/useOnlineStatus';
 import * as createSessionActionModule from '@/src/application/session/create-session.action';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { replaceDocument } from '@/src/lib/browser-navigation';
 
-vi.mock('next/navigation', () => ({
-  useRouter: vi.fn(),
-}));
+vi.mock('@/src/lib/browser-navigation', () => ({ replaceDocument: vi.fn() }));
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn() },
 }));
 
 describe('CreateSessionButton', () => {
-  let mockPush: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPush = vi.fn();
-    vi.mocked(useRouter).mockReturnValue({ push: mockPush } as unknown as ReturnType<typeof useRouter>);
   });
 
   it('renders button with accessible label', () => {
@@ -60,7 +54,7 @@ describe('CreateSessionButton', () => {
     fireEvent.click(button);
 
     await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/sala/AABB11/dj');
+      expect(replaceDocument).toHaveBeenCalledWith('/sala/AABB11/dj');
     });
   });
 
@@ -78,7 +72,20 @@ describe('CreateSessionButton', () => {
 
     await waitFor(() => {
       expect(toast.error).toHaveBeenCalledWith('Test error message');
-      expect(mockPush).not.toHaveBeenCalled();
+      expect(replaceDocument).not.toHaveBeenCalled();
+    });
+  });
+
+  it('restores the button when the server action rejects', async () => {
+    vi.spyOn(useOnlineStatusModule, 'useOnlineStatus').mockReturnValue({ isOnline: true });
+    vi.spyOn(createSessionActionModule, 'createSessionAction').mockRejectedValue(new Error('stale action'));
+
+    render(<CreateSessionButton />);
+    fireEvent.click(screen.getByRole('button'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+      expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(false);
     });
   });
 });

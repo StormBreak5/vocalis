@@ -274,6 +274,8 @@
 .participantRow .avatar { width: 36px; height: 36px; font-size: 11px; }
 .participantName { overflow: hidden; font-size: 13px; font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
 .participantMeta { margin-top: 2px; color: var(--neon-text-muted); font-size: 11px; }
+.participantMeta[data-presence="online"] { color: var(--neon-green); }
+.participantRow:not([data-online]) { opacity: .68; }
 .joinedTime { color: var(--neon-text-secondary); font-family: "Roboto Mono Variable", "Roboto Mono", monospace; font-size: 10px; }
 .participantEmpty { padding: 30px 20px; color: var(--neon-text-secondary); text-align: center; }
 

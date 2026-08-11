@@ -5,6 +5,7 @@ import { useSessionLifecycleContext } from '@/src/components/session/SessionLife
 import type { Participant } from '@/src/domain/participant.types';
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
+import { useTrackParticipantPresence } from '@/src/hooks/useSessionPresence';
 import { CompactQueueRow } from './CompactQueueRow';
 import { NowSingingHero } from './NowSingingHero';
 import { ParticipantCompactHeader } from './ParticipantCompactHeader';
@@ -27,6 +28,7 @@ export function ParticipantQueueExperience({
   participant: Participant;
 }) {
   const lifecycle = useSessionLifecycleContext();
+  useTrackParticipantPresence(sessionId, participant.id);
   const { queue, isLoading, isOffline: queueIsOffline } = useActiveQueue(sessionId);
   const { isOnline } = useOnlineStatus();
   const sessionStatus = lifecycle.snapshot?.status;

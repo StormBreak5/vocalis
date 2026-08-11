@@ -1,7 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { Button } from '@/src/components/ui/button';
 import { Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,10 +8,10 @@ import { createSessionAction } from '@/src/application/session/create-session.ac
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import styles from './create-session-button.module.css';
 import { cn } from '@/src/lib/utils';
+import { replaceDocument } from '@/src/lib/browser-navigation';
 
 export function CreateSessionButton({ variant = 'default' }: { variant?: 'default' | 'neon' }) {
-  const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
   const { isOnline } = useOnlineStatus();
 
   const handleCreateSession = () => {
@@ -21,13 +20,24 @@ export function CreateSessionButton({ variant = 'default' }: { variant?: 'defaul
       return;
     }
 
-    startTransition(async () => {
-      const result = await createSessionAction();
+    setIsPending(true);
+
+    let timeoutId: number | undefined;
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = window.setTimeout(() => reject(new Error('CREATE_SESSION_TIMEOUT')), 20_000);
+    });
+
+    void Promise.race([createSessionAction(), timeout]).then((result) => {
       if (result.ok) {
-        router.push(`/sala/${result.session.code}/dj`);
+        replaceDocument(`/sala/${result.session.code}/dj`);
       } else {
         toast.error(result.userMessage);
       }
+    }).catch(() => {
+      toast.error('A cria\u00e7\u00e3o da sala demorou demais. Atualize a p\u00e1gina para confirmar antes de tentar novamente.');
+    }).finally(() => {
+      window.clearTimeout(timeoutId);
+      setIsPending(false);
     });
   };
 
