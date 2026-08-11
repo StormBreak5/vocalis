@@ -42,8 +42,8 @@ describe('Noite Neon Elegante nas paginas publicas', () => {
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Falha controlada.'));
   });
 
-  it('mantem navegacao de retorno e apresenta o formulario standalone', () => {
-    render(<EntrarPage />);
+  it('mantem navegacao de retorno e apresenta o formulario standalone', async () => {
+    render(await EntrarPage());
     expect(screen.getByRole('link', { name: /Voltar para o in/i }).getAttribute('href')).toBe('/');
     expect(screen.getByRole('heading', { name: 'Entrar na sala' })).toBeDefined();
     expect(screen.getByText(/Use o c.digo de seis caracteres/i)).toBeDefined();
