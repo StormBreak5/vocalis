@@ -115,10 +115,13 @@ describe('createRoomEntryQr', () => {
       .map((file) => relative(root, file).replaceAll('\\', '/'))
       .sort();
 
-    const productionImports = imports.filter((file) => !file.includes('__tests__'));
+    const productionImports = imports.filter((file) => (
+      !file.includes('__tests__') && !file.startsWith('e2e/')
+    ));
     expect(productionImports).toEqual([
       'src/infrastructure/qr/room-entry-qr.server.ts',
     ]);
     expect(imports).toContain('src/infrastructure/__tests__/room-entry-qr.test.ts');
+    expect(imports).toContain('e2e/public-room-display.spec.ts');
   });
 });

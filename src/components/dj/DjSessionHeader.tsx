@@ -1,8 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
-import { Copy, Ellipsis, MicVocal, Radio, X } from 'lucide-react';
+import { Copy, Ellipsis, ExternalLink, MicVocal, Radio, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { CloseSessionButton } from '@/src/components/session/CloseSessionButton';
 import { SessionStatusToggle } from '@/src/components/session/SessionStatusToggle';
@@ -36,9 +37,32 @@ export function DjSessionStatus({ connectionState }: { connectionState: DjConnec
   );
 }
 
-function SessionControls({ disabled, mobile = false }: { disabled: boolean; mobile?: boolean }) {
+function DisplayLink({ roomCode }: { roomCode: string }) {
+  return (
+    <Link
+      className={styles.displayLink}
+      href={`/sala/${encodeURIComponent(roomCode)}/display`}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <ExternalLink size={17} aria-hidden="true" />
+      Abrir telão
+    </Link>
+  );
+}
+
+function SessionControls({
+  disabled,
+  roomCode,
+  mobile = false,
+}: {
+  disabled: boolean;
+  roomCode: string;
+  mobile?: boolean;
+}) {
   return (
     <>
+      <DisplayLink roomCode={roomCode} />
       <SessionStatusToggle disabled={disabled} appearance="neon" />
       <CloseSessionButton
         disabled={disabled}
@@ -50,7 +74,7 @@ function SessionControls({ disabled, mobile = false }: { disabled: boolean; mobi
   );
 }
 
-function MobileSessionControls({ disabled }: { disabled: boolean }) {
+function MobileSessionControls({ disabled, roomCode }: { disabled: boolean; roomCode: string }) {
   const popupRef = useRef<HTMLDivElement>(null);
   return (
     <Dialog.Root modal>
@@ -70,6 +94,7 @@ function MobileSessionControls({ disabled }: { disabled: boolean }) {
             <Dialog.Close className={styles.sheetClose} data-session-sheet-close aria-label="Fechar controles da sessão"><X size={21} aria-hidden="true" /></Dialog.Close>
           </div>
           <div className={styles.sheetActions}>
+            <DisplayLink roomCode={roomCode} />
             <SessionStatusToggle disabled={disabled} appearance="neon" />
             <div className={styles.destructiveGroup}>
               <CloseSessionButton
@@ -116,9 +141,9 @@ export function DjSessionHeader({
           <button type="button" className={styles.iconButton} onClick={() => void copyCode()} aria-label="Copiar código da sala"><Copy size={18} aria-hidden="true" /></button>
         </div>
         <DjSessionStatus connectionState={connectionState} />
-        <div className={styles.desktopControls}><SessionControls disabled={controlsDisabled} /></div>
+        <div className={styles.desktopControls}><SessionControls disabled={controlsDisabled} roomCode={roomCode} /></div>
         <div className={styles.mobileQuickToggle}><SessionStatusToggle disabled={controlsDisabled} appearance="neon" /></div>
-        <div className={styles.mobileControls}><MobileSessionControls disabled={controlsDisabled} /></div>
+        <div className={styles.mobileControls}><MobileSessionControls disabled={controlsDisabled} roomCode={roomCode} /></div>
       </div>
     </header>
   );
