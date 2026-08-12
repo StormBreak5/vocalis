@@ -6,8 +6,8 @@ const snapshot={id:'11111111-1111-4111-8111-111111111111',code:'ABC234',status:'
 function Consumer(){const state=useSessionLifecycleContext();return <span>{state.phase}:{String(state.writesAllowed)}:{state.sessionId}</span>}
 
 describe('SessionLifecycleProvider',()=>{
-  it('semeia estado confirmado recebido do servidor',()=>{
+  it('preserva a fotografia do servidor e aguarda saúde do canal para liberar escrita',()=>{
     render(<SessionLifecycleProvider sessionId={snapshot.id} initialSnapshot={snapshot}><Consumer/></SessionLifecycleProvider>);
-    expect(screen.getByText(`connected:true:${snapshot.id}`)).toBeDefined();
+    expect(screen.getByText(`reconnecting:false:${snapshot.id}`)).toBeDefined();
   });
 });
