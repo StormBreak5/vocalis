@@ -4,6 +4,7 @@ export type SessionLifecycleEvent =
   | { type: 'loading' }
   | { type: 'snapshot'; snapshot: SessionStatusSnapshot }
   | { type: 'SESSION_UPDATED'; snapshot: SessionStatusSnapshot }
+  | { type: 'snapshot_reconnecting'; snapshot: SessionStatusSnapshot }
   | { type: 'reconnecting' }
   | { type: 'offline' }
   | { type: 'error'; message: string }
@@ -30,6 +31,15 @@ export function sessionLifecycleReducer(state: SessionLifecycleState, event: Ses
         error: null 
       };
     }
+    case 'snapshot_reconnecting':
+      return {
+        snapshot: event.snapshot,
+        phase: 'reconnecting',
+        epoch: state.epoch + 1,
+        writesAllowed: false,
+        newQueueEntriesAllowed: false,
+        error: null,
+      };
     case 'reconnecting': {
       // Mantém coesão caso esteja reconectando de uma sessão fechada localmente
       if (state.snapshot?.status === 'closed') return state;

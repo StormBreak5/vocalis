@@ -144,6 +144,19 @@ describe('DjDashboardExperience', () => {
     expect(screen.getAllByRole('button', { name: 'Pausar fila' }).length).toBeGreaterThan(0);
   });
 
+  it('oferece o telão em nova aba sem parâmetro administrativo', () => {
+    renderDashboard();
+    const links = screen.getAllByRole('link', { name: 'Abrir telão' });
+
+    expect(links.length).toBeGreaterThan(0);
+    for (const link of links) {
+      expect(link.getAttribute('href')).toBe('/sala/NEON42/display');
+      expect(link.getAttribute('target')).toBe('_blank');
+      expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+      expect(link.getAttribute('href')).not.toContain('?');
+    }
+  });
+
   it('permite operar itens existentes durante paused', async () => {
     status = 'paused';
     queue = [entry({ id: 'paused-entry', status: 'pending' })];
