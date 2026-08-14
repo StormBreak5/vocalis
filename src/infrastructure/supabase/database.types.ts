@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       participants: {
@@ -86,11 +111,11 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "queue_participant_id_fkey"
-            columns: ["participant_id"]
+            foreignKeyName: "queue_participant_session_fk"
+            columns: ["participant_id", "session_id"]
             isOneToOne: false
             referencedRelation: "participants"
-            referencedColumns: ["id"]
+            referencedColumns: ["id", "session_id"]
           },
           {
             foreignKeyName: "queue_session_id_fkey"
@@ -164,7 +189,7 @@ export type Database = {
         }[]
       }
       create_session: {
-        Args: { p_host_id: string }
+        Args: never
         Returns: {
           closed_at: string | null
           code: string
@@ -197,29 +222,6 @@ export type Database = {
       join_session: {
         Args: { p_code: string; p_display_name: string }
         Returns: Json
-      }
-      recover_participant: {
-        Args: {
-          p_code: string
-          p_participant_id: string
-          p_recovery_token: string
-        }
-        Returns: {
-          auth_user_id: string | null
-          created_at: string
-          disambiguation_index: number
-          display_name: string
-          id: string
-          joined_at: string
-          last_seen: string
-          session_id: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "participants"
-          isOneToOne: true
-          isSetofReturn: false
-        }
       }
       update_queue_status: {
         Args: { p_new_status: string; p_queue_id: string }
@@ -369,6 +371,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

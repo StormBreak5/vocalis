@@ -212,9 +212,7 @@ async function checkApplicationOperation(status) {
     if (authError || !authData.user) throw authError ?? new Error('Auth sem usuário.');
     userId = authData.user.id;
 
-    const { data: session, error: rpcError } = await supabase.rpc('create_session', {
-      p_host_id: userId,
-    });
+    const { data: session, error: rpcError } = await supabase.rpc('create_session');
     if (rpcError || !session?.id) throw rpcError ?? new Error('RPC sem sessão.');
     sessionId = session.id;
   } finally {

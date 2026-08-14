@@ -98,7 +98,28 @@ describe('createSessionAction', () => {
 
     const result = await createSessionAction();
     expect(mockSupabase.auth.signInAnonymously).not.toHaveBeenCalled();
-    expect(mockSupabase.rpc).toHaveBeenCalledWith('create_session', { p_host_id: 'existing-user-id' });
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('create_session');
+    expect(mockSupabase.rpc.mock.calls[0]).toHaveLength(1);
     expect(result.ok).toBe(true);
+  });
+
+  it('never sends a caller-supplied host id to the RPC (ownership is server-derived)', async () => {
+    mockSupabase.rpc.mockResolvedValue({
+      data: {
+        id: 'session-123',
+        code: 'A2B3C4',
+        status: 'active',
+        host_id: 'anon-user-123',
+        created_at: '2026-07-14',
+        closed_at: null,
+        max_participants: 50,
+        max_queue_entries: 200,
+      },
+      error: null,
+    });
+
+    await createSessionAction();
+    const [, rpcArgs] = mockSupabase.rpc.mock.calls[0];
+    expect(rpcArgs).toBeUndefined();
   });
 });

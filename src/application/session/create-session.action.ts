@@ -11,23 +11,18 @@ export async function createSessionAction(): Promise<AppSuccess<{ session: Sessi
     
     // Check current auth
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    let userId: string;
-    
+
     if (authError || !user) {
       // Sign in anonymously
       const { data, error } = await supabase.auth.signInAnonymously();
       if (error || !data.user) {
         return { ok: false, code: 'AUTH_FAILED', userMessage: 'Falha na autenticação.' };
       }
-      userId = data.user.id;
-    } else {
-      userId = user.id;
     }
 
-    // Call RPC
-    const { data: newSession, error: rpcError } = await supabase.rpc('create_session', { p_host_id: userId });
-    
+    // Call RPC (ownership is derived server-side from auth.uid(), never from client input)
+    const { data: newSession, error: rpcError } = await supabase.rpc('create_session');
+
     if (rpcError || !newSession) {
       if (rpcError?.message?.includes('CODE_GENERATION_FAILED')) {
         return { ok: false, code: 'CODE_GENERATION_FAILED', userMessage: 'Falha ao gerar código da sala.' };

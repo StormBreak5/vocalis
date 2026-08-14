@@ -23,16 +23,22 @@ describe.skipIf(!integrationEnabled)('DB RPC: create_queue_entry', () => {
 
     // 1. Create a host user
     const hostEmail = `host_${Date.now()}@test.com`;
-    const { data: hostAuth, error: createHostError } = await supabase.auth.admin.createUser({
+    const { error: createHostError } = await supabase.auth.admin.createUser({
       email: hostEmail, password: 'password123', email_confirm: true,
     });
     if (createHostError) console.error('createHostError:', createHostError);
-    const hostId = hostAuth.user!.id;
+    const { data: hostLoginData } = await createClient(supabaseUrl, anonKey, { auth: { persistSession: false } }).auth.signInWithPassword({
+      email: hostEmail,
+      password: 'password123',
+    });
+    const hostClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: `Bearer ${hostLoginData.session!.access_token}` } }
+    });
 
-    // 2. Create session
-    const { data: sessionData } = await supabase.rpc('create_session', { p_host_id: hostId });
+    // 2. Create session (ownership is derived from the caller's auth.uid())
+    const { data: sessionData, error: sessionError } = await hostClient.rpc('create_session');
     if (!sessionData) {
-      throw new Error('create_session não retornou uma sessão.');
+      throw new Error('create_session não retornou uma sessão: ' + JSON.stringify(sessionError));
     }
     sessionId = sessionData.id;
     const sessionCode = sessionData.code;
