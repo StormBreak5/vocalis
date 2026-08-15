@@ -9,7 +9,17 @@ async function prepare() {
   await ensureDockerAvailable();
   const running = await readLocalSupabaseStatus({ allowUnavailable: true });
   if (!running) {
-    process.stdout.write('[supabase-local] Iniciando serviços locais.\n');
+    // `running === null` cobre dois casos: nada de pé (CI, máquina limpa) e
+    // stack parcial (máquina de desenvolvimento com resquício de execução
+    // anterior). O `stop` tolerante a falha uniformiza os dois — se não havia
+    // nada rodando ele apenas não faz nada, e se havia algo pela metade ele
+    // limpa antes do `start`, que não sobe sobre containers órfãos.
+    process.stdout.write(
+      '[supabase-local] Ambiente ausente ou incompleto. Recriando serviços locais.\n',
+    );
+    await runSupabaseCommand(['stop', '--no-backup'], null, {
+      allowFailure: true,
+    });
     await runSupabaseCommand(
       ['start', '--exclude', SUPABASE_TEST_EXCLUDES],
       'Falha ao iniciar o Supabase local.',
