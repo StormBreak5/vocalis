@@ -85,15 +85,29 @@ export async function readLocalSupabaseStatus({ allowUnavailable = false } = {})
     throw new Error('Supabase local indisponível.');
   }
 
-  return validateLocalSupabaseStatus(
-    parseSupabaseEnvOutput(result.stdout),
-  );
+  try {
+    return validateLocalSupabaseStatus(parseSupabaseEnvOutput(result.stdout));
+  } catch (error) {
+    // A CLI respondeu, mas o ambiente veio incompleto — tipicamente uma stack
+    // local meio de pé, sobrevivente de uma execução anterior interrompida.
+    // Quem passa `allowUnavailable` está perguntando "dá para usar como está?";
+    // um ambiente parcial não serve, e a resposta correta é `null` (recriar),
+    // não uma exceção. Sem isso, o `prepare` morre em vez de se recuperar —
+    // falha que a CI nunca reproduz, porque lá a stack sempre começa do zero.
+    if (allowUnavailable) return null;
+    throw error;
+  }
 }
 
-export async function runSupabaseCommand(args, failureMessage) {
+export async function runSupabaseCommand(
+  args,
+  failureMessage,
+  { allowFailure = false } = {},
+) {
   assertSupabaseCliVersion();
   const result = await capture(process.execPath, [supabaseCli, ...args]);
-  if (result.code !== 0) throw new Error(failureMessage);
+  if (result.code !== 0 && !allowFailure) throw new Error(failureMessage);
+  return result.code === 0;
 }
 
 export async function runNodeProcess(entrypoint, args, environment) {
