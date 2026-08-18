@@ -106,7 +106,15 @@ CREATE POLICY display_pairings_select_host ON public.display_pairings
 FOR SELECT TO authenticated
 USING (private.is_session_host(session_id));
 
-GRANT SELECT (id, session_id, paired_at, revoked_at) ON TABLE public.display_pairings TO authenticated;
+-- Table-level (not column-restricted) grant: Postgres requires privilege on
+-- every column touched by a `SELECT *`-shaped query — and PostgREST's default
+-- select, and Realtime's internal RLS-authorization check for
+-- postgres_changes, both do exactly that. A column-list grant here makes
+-- every such query fail with "permission denied for table", silently
+-- breaking the Realtime subscription despite the RLS policy being correct
+-- (mirrors the pattern already used for public.participants/public.queue in
+-- migrations 004 and 016 — row visibility is RLS's job, not column grants).
+GRANT SELECT ON TABLE public.display_pairings TO authenticated;
 
 -- Part 3: RPCs ----------------------------------------------------------------
 

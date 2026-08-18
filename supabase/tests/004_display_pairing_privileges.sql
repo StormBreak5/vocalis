@@ -21,9 +21,10 @@ INSERT INTO public.participants(id,session_id,display_name,auth_user_id) VALUES
 INSERT INTO public.queue(id,session_id,participant_id,song_title,artist,status,position) VALUES
 ('40000000-0000-4000-8000-000000000161','20000000-0000-4000-8000-000000000161','30000000-0000-4000-8000-000000000161','Song','Artist','pending',1);
 
--- id fixed as a literal on purpose: the tv identity has no SELECT grant on
--- the auth_user_id column (proven below), so it could never look up its own
--- pairing id via a WHERE auth_user_id=... query in real use either.
+-- id fixed as a literal on purpose: no RPC ever hands the tv identity its
+-- own display_pairings.id, and RLS blocks it from SELECTing the row anyway
+-- (display_pairings_select_host is host-only), so a literal is the only way
+-- to seed a row this fixture can reference later.
 INSERT INTO public.display_pairings(id,session_id,auth_user_id) VALUES
 ('50000000-0000-4000-8000-000000000161','20000000-0000-4000-8000-000000000161','10000000-0000-4000-8000-000000000163');
 
@@ -43,7 +44,16 @@ SELECT ok(NOT has_table_privilege('authenticated','public.display_pairings','INS
 SELECT ok(NOT has_table_privilege('anon','public.display_pairings','INSERT,UPDATE,DELETE,SELECT'),'display_pairings totalmente bloqueado para anon');
 SELECT ok(NOT has_table_privilege('authenticated','private.display_pairing_codes','SELECT,INSERT,UPDATE,DELETE'),'display_pairing_codes bloqueada para authenticated');
 SELECT ok(has_column_privilege('authenticated','public.display_pairings','session_id','SELECT'),'session_id concedida (coluna de filtro Realtime)');
-SELECT ok(NOT has_column_privilege('authenticated','public.display_pairings','auth_user_id','SELECT'),'auth_user_id NÃO concedida');
+-- Grant é de tabela inteira (não restrito por coluna): um grant restrito a
+-- (id, session_id, paired_at, revoked_at) faz qualquer leitura no formato
+-- `SELECT *` falhar com "permission denied for table" — inclusive a checagem
+-- de autorização RLS que o Realtime faz internamente para postgres_changes —
+-- porque o Postgres exige privilégio em TODAS as colunas da tabela para
+-- expandir `*`, não só nas citadas em filtros. RLS (display_pairings_select_host)
+-- já restringe as linhas visíveis ao Host da sessão; auth_user_id ficar
+-- selecionável para authenticated não é uma nova exposição de dados, é o
+-- mesmo padrão de participants/queue (grant de tabela inteira + RLS por linha).
+SELECT ok(has_column_privilege('authenticated','public.display_pairings','auth_user_id','SELECT'),'auth_user_id concedida (grant de tabela inteira, não restrito por coluna)');
 
 -- SC-003: as sete RPCs de escrita recusam identidade de telão pareado -------
 

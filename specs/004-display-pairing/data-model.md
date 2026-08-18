@@ -66,13 +66,13 @@ FOR SELECT TO authenticated
 USING (private.is_session_host(session_id));
 ```
 
-`REVOKE SELECT ... FROM PUBLIC, anon, authenticated` antes do grant mínimo:
+`REVOKE SELECT ... FROM PUBLIC, anon, authenticated` antes do grant:
 
 ```sql
-GRANT SELECT (id, session_id, paired_at, revoked_at) ON TABLE public.display_pairings TO authenticated;
+GRANT SELECT ON TABLE public.display_pairings TO authenticated;
 ```
 
-(`session_id` precisa estar no grant: a assinatura Realtime do painel do DJ filtra por `filter: session_id=eq.<sessionId>`, e não é possível filtrar por uma coluna sem `SELECT` nela — mesmo precedente da migration 016, que concede `SELECT (id, code, status, closed_at)` em `sessions` justamente porque `id` é a coluna de filtro de `useSessionLifecycle`. `auth_user_id` continua fora do grant — a policy já filtra as linhas por sessão do Host, e expor `auth_user_id` não tem uso na UI e evitaria qualquer tentação futura de correlacionar telões entre sessões.)
+(Grant de tabela inteira, não restrito por coluna — tentativa anterior usava `GRANT SELECT (id, session_id, paired_at, revoked_at)` para manter `auth_user_id` fora do alcance do Host, citando como precedente o `GRANT SELECT (id, code, status, closed_at)` em `sessions` da migration 016. Esse precedente é enganoso: `sessions` já tinha `GRANT SELECT ON public.sessions TO anon, authenticated` sem restrição de coluna desde a migration 004, então o grant restrito da 016 é inerte — a permissão mais ampla já concedida antes vale, grants são aditivos. `display_pairings` é uma tabela nova sem grant anterior, então o grant restrito era o único em vigor, e isso quebra qualquer leitura no formato `SELECT *`: tanto o `select('*')` do PostgREST quanto a checagem de autorização RLS que o Realtime faz internamente para `postgres_changes` esperam privilégio em todas as colunas da tabela, não só nas citadas no filtro. O sintoma observado foi `permission denied for table display_pairings` e o evento de INSERT nunca chegava ao painel do DJ. A policy `display_pairings_select_host` já restringe as linhas visíveis ao Host da sessão — expor `auth_user_id` a esse Host não é um risco novo, é o mesmo padrão já usado em `participants`/`queue` (grant de tabela inteira + RLS por linha, migrations 004 e 016).)
 
 Adicionada à publication `supabase_realtime` (mesmo bloco idempotente `DO $$ IF NOT EXISTS $$` usado para `sessions` na migration 016).
 

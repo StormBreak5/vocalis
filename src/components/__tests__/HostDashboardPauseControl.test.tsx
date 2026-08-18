@@ -9,6 +9,7 @@ vi.mock('@/src/infrastructure/supabase/queries/session.queries', () => ({
   getSessionStatusRowByCode: vi.fn(),
 }));
 vi.mock('@/src/infrastructure/supabase/queries/participant.queries', () => ({ getParticipantsBySessionId: vi.fn().mockResolvedValue([]) }));
+vi.mock('@/src/application/display-pairing/list-paired-displays', () => ({ listPairedDisplays: vi.fn().mockResolvedValue([]) }));
 vi.mock('next/navigation', () => ({ redirect: vi.fn(() => { throw new Error('NEXT_REDIRECT'); }) }));
 vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({ SessionLifecycleProvider: ({ children }: { children: React.ReactNode }) => children }));
 vi.mock('@/src/components/dj/DjDashboardExperience', () => ({ DjDashboardExperience: () => <button>Pausar fila</button> }));

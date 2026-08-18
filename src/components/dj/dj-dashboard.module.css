@@ -296,6 +296,43 @@
 .joinedTime { color: var(--neon-text-secondary); font-family: "Roboto Mono Variable", "Roboto Mono", monospace; font-size: 10px; }
 .participantEmpty { padding: 30px 20px; color: var(--neon-text-secondary); text-align: center; }
 
+.pairingGenerateButton {
+  width: calc(100% - 40px);
+  margin: 0 20px 16px;
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--neon-violet), oklch(0.62 0.2 325));
+  color: white;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 8px 22px oklch(0.49 0.22 298 / 22%);
+  cursor: pointer;
+  transition: transform 120ms ease, opacity 120ms ease;
+}
+.pairingGenerateButton:active:not(:disabled) { transform: scale(0.985); }
+.pairingGenerateButton:disabled { cursor: not-allowed; opacity: 0.48; box-shadow: none; }
+.pairingGenerateButtonLoading { display: inline-flex; align-items: center; gap: 8px; }
+
+.pairingCodeCard {
+  margin: 0 20px 16px;
+  padding: 16px;
+  display: grid;
+  gap: 4px;
+  justify-items: center;
+  border: 1px solid oklch(0.81 0.14 200 / 25%);
+  border-radius: var(--neon-radius-md);
+  background: oklch(0.81 0.14 200 / 6%);
+  text-align: center;
+}
+.pairingCodeLabel { color: var(--neon-text-muted); font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.pairingCodeValue { font-family: "Roboto Mono Variable", "Roboto Mono", monospace; font-size: 32px; font-weight: 850; letter-spacing: 0.12em; color: var(--neon-cyan); }
+.pairingCodeExpiry { color: var(--neon-text-secondary); font-size: 12px; }
+
 .connectionNotice { padding: 15px 17px; align-items: flex-start; gap: 10px; color: var(--neon-text-secondary); font-size: 12px; line-height: 1.45; }
 .connectionNotice svg { flex: 0 0 auto; color: var(--neon-cyan); }
 .contextNotice { position: relative; z-index: 1; margin: 14px 14px 0; padding: 13px 14px; display: flex; align-items: flex-start; gap: 9px; border: 1px solid var(--neon-line); border-radius: var(--neon-radius-md); background: var(--neon-surface-soft); color: var(--neon-text-secondary); font-size: 12px; line-height: 1.4; }

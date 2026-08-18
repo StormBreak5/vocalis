@@ -1,14 +1,13 @@
 import { redirect } from 'next/navigation';
 import { DisplayClosedState } from '@/src/components/display/DisplayClosedState';
 import { DisplayExperience } from '@/src/components/display/DisplayExperience';
+import { DisplayPairingScreen } from '@/src/components/display/DisplayPairingScreen';
 import { DisplayShell } from '@/src/components/display/DisplayShell';
 import { SessionLifecycleProvider } from '@/src/components/session/SessionLifecycleProvider';
+import { getDisplaySessionDetails } from '@/src/application/display-pairing/get-display-session-details';
 import { normalizeCode, validateSessionCode } from '@/src/domain/validators/session-code.validator';
 import { generateRoomEntryQr } from '@/src/infrastructure/qr/room-entry-qr.server';
-import {
-  getHostSessionDetails,
-  getSessionStatusRowByCode,
-} from '@/src/infrastructure/supabase/queries/session.queries';
+import { getSessionStatusRowByCode } from '@/src/infrastructure/supabase/queries/session.queries';
 
 export default async function PublicDisplayPage({
   params,
@@ -25,13 +24,26 @@ export default async function PublicDisplayPage({
     redirect(roomPath);
   }
 
+  // Both lookups below are indistinguishable on failure by design (FR-008):
+  // a nonexistent room code, an unrelated/anonymous visitor (RLS denies
+  // getSessionStatusRowByCode), a mere participant, and a revoked display
+  // (RLS-authorized read but get_display_session_details still refuses) all
+  // land on the pairing screen instead of a redirect. Only a malformed code
+  // (rejected above) still redirects to the participant route.
   const visibleSession = await getSessionStatusRowByCode(code);
-  if (!visibleSession) redirect(roomPath);
+  const authorizedSession = visibleSession
+    ? await getDisplaySessionDetails(visibleSession.id)
+    : null;
 
-  const ownedSession = await getHostSessionDetails(visibleSession.id);
-  if (!ownedSession) redirect(roomPath);
+  if (!authorizedSession) {
+    return (
+      <DisplayShell>
+        <DisplayPairingScreen roomCode={code} />
+      </DisplayShell>
+    );
+  }
 
-  if (ownedSession.status === 'closed') {
+  if (authorizedSession.status === 'closed') {
     return (
       <DisplayShell>
         <DisplayClosedState />
@@ -39,22 +51,22 @@ export default async function PublicDisplayPage({
     );
   }
 
-  const qr = generateRoomEntryQr(ownedSession.code);
+  const qr = generateRoomEntryQr(authorizedSession.code);
 
   return (
     <DisplayShell>
       <SessionLifecycleProvider
-        sessionId={ownedSession.id}
+        sessionId={authorizedSession.id}
         initialSnapshot={{
-          id: ownedSession.id,
-          code: ownedSession.code,
-          status: ownedSession.status,
-          closedAt: ownedSession.closedAt,
+          id: authorizedSession.id,
+          code: authorizedSession.code,
+          status: authorizedSession.status,
+          closedAt: authorizedSession.closedAt,
         }}
       >
         <DisplayExperience
-          sessionId={ownedSession.id}
-          code={ownedSession.code}
+          sessionId={authorizedSession.id}
+          code={authorizedSession.code}
           qr={qr}
         />
       </SessionLifecycleProvider>

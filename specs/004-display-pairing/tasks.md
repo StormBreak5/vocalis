@@ -8,9 +8,9 @@
 
 ## Phase 1 — Setup
 
-- [ ] T001 Verificar branch `004-display-pairing`, `.specify/feature.json` apontando `specs/004-display-pairing` e `check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks` retornando esse FEATURE_DIR
-- [ ] T002 Preflight somente leitura da Supabase CLI já pinada pelo projeto (`--version`, `migration --help`, `migration up --help`, `migration list --help`, `test db --help`, `gen types --help`); abortar em versão divergente ou comando ausente
-- [ ] T003 [P] Iniciar `supabase start`, validar Database/Auth/Realtime e status loopback (`localhost`/`127.0.0.1`) sem imprimir segredos
+- [X] T001 Verificar branch `004-display-pairing`, `.specify/feature.json` apontando `specs/004-display-pairing` e `check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks` retornando esse FEATURE_DIR
+- [X] T002 Preflight somente leitura da Supabase CLI já pinada pelo projeto (`--version`, `migration --help`, `migration up --help`, `migration list --help`, `test db --help`, `gen types --help`); abortar em versão divergente ou comando ausente
+- [X] T003 [P] Iniciar `supabase start`, validar Database/Auth/Realtime e status loopback (`localhost`/`127.0.0.1`) sem imprimir segredos
 
 ## Phase 2 — Foundational (bloqueante para todas as histórias)
 
@@ -18,39 +18,39 @@
 
 ### Testes pgTAP primeiro (escritos antes da migration existir — devem FALHAR até T008–T011)
 
-- [ ] T004 [P] Escrever `supabase/tests/004_display_pairing_codes.sql`: geração host-only, sessão fechada rejeitada, colisão/retry, unicidade parcial, expiração, consumo único, resgate concorrente (duas transações `pg` disputando o mesmo código), `list_paired_displays` vazio/populado/host-only
-- [ ] T005 [P] Escrever `supabase/tests/004_display_pairing_rls.sql` — **arquivo do gate SC-004**: `sessions`/`queue` liberadas para telão pareado (aberto e, no caso de `sessions`, também fechado); `participants` bloqueada para telão pareado em todo estado; isolamento entre sessões; acesso revogado após `revoke_display_pairing` e após `close_session`
-- [ ] T006 [P] Escrever `supabase/tests/004_display_pairing_privileges.sql` — **arquivo do gate SC-003**: as cinco RPCs de escrita pré-existentes (`create_queue_entry`, `cancel_queue_entry`, `update_queue_status`, `update_session_status`, `close_session`) chamadas com identidade de telão pareado, todas recusadas, **e também `generate_display_pairing_code` e `revoke_display_pairing`** — as duas RPCs de escrita host-only desta própria feature — chamadas com a mesma identidade, ambas recusadas; um telão que conseguisse cunhar código de pareamento ou revogar outro telão seria a escalada de privilégio que a User Story 3 existe para impedir
+- [X] T004 [P] Escrever `supabase/tests/004_display_pairing_codes.sql`: geração host-only, sessão fechada rejeitada, colisão/retry, unicidade parcial, expiração, consumo único, resgate concorrente (duas transações `pg` disputando o mesmo código), `list_paired_displays` vazio/populado/host-only
+- [X] T005 [P] Escrever `supabase/tests/004_display_pairing_rls.sql` — **arquivo do gate SC-004**: `sessions`/`queue` liberadas para telão pareado (aberto e, no caso de `sessions`, também fechado); `participants` bloqueada para telão pareado em todo estado; isolamento entre sessões; acesso revogado após `revoke_display_pairing` e após `close_session`
+- [X] T006 [P] Escrever `supabase/tests/004_display_pairing_privileges.sql` — **arquivo do gate SC-003**: as cinco RPCs de escrita pré-existentes (`create_queue_entry`, `cancel_queue_entry`, `update_queue_status`, `update_session_status`, `close_session`) chamadas com identidade de telão pareado, todas recusadas, **e também `generate_display_pairing_code` e `revoke_display_pairing`** — as duas RPCs de escrita host-only desta própria feature — chamadas com a mesma identidade, ambas recusadas; um telão que conseguisse cunhar código de pareamento ou revogar outro telão seria a escalada de privilégio que a User Story 3 existe para impedir
 
 **T007 removido**: era `supabase/tests/004_display_pairing_rate_limit.sql`. O rate limit por identidade/sessão foi removido do desenho (decisão registrada em `research.md` R13) — o espaço de códigos (32⁶ ≈ 1,07 bilhão de combinações) e a validade de 5 minutos já tornam força bruta inviável, e a tentativa de logar antes de rejeitar esbarrava numa tensão transacional real (`RAISE EXCEPTION` desfaz qualquer escrita feita antes dele na mesma chamada, mesmo com captura interna). Numeração das demais tarefas não foi alterada.
 
 ### Migration única `018` (mesmo arquivo, partes sequenciais — não paralelizável)
 
-- [ ] T008 Criar `supabase/migrations/20260817120000_018_display_pairing.sql` parte 1: `private.display_pairing_codes`, `public.display_pairings` com constraints/índices de `data-model.md`, e `REVOKE ALL` explícito das duas tabelas para `PUBLIC, anon, authenticated`
-- [ ] T009 Continuar o mesmo arquivo, parte 2: helpers `private.is_paired_display`/`private.is_paired_display_open`; `DROP POLICY`+`CREATE POLICY` de `sessions_select_owned_member_or_display` e `queue_select_authorized_open_host_or_display`; `CREATE POLICY display_pairings_select_host`; `GRANT SELECT (id, session_id, paired_at, revoked_at)` em `display_pairings`
-- [ ] T010 Continuar o mesmo arquivo, parte 3: as cinco RPCs (`generate_display_pairing_code`, `redeem_display_pairing_code`, `get_display_session_details`, `list_paired_displays`, `revoke_display_pairing`) exatamente como em `contracts/`, cada uma com owner `postgres`, `REVOKE ALL` + `GRANT EXECUTE TO authenticated`
-- [ ] T011 Concluir o mesmo arquivo, parte 4: `ALTER PUBLICATION supabase_realtime ADD TABLE public.display_pairings` no bloco idempotente `DO $$ IF NOT EXISTS $$`, `NOTIFY pgrst, 'reload schema'` e `COMMIT`
+- [X] T008 Criar `supabase/migrations/20260817120000_018_display_pairing.sql` parte 1: `private.display_pairing_codes`, `public.display_pairings` com constraints/índices de `data-model.md`, e `REVOKE ALL` explícito das duas tabelas para `PUBLIC, anon, authenticated`
+- [X] T009 Continuar o mesmo arquivo, parte 2: helpers `private.is_paired_display`/`private.is_paired_display_open`; `DROP POLICY`+`CREATE POLICY` de `sessions_select_owned_member_or_display` e `queue_select_authorized_open_host_or_display`; `CREATE POLICY display_pairings_select_host`; `GRANT SELECT (id, session_id, paired_at, revoked_at)` em `display_pairings`
+- [X] T010 Continuar o mesmo arquivo, parte 3: as cinco RPCs (`generate_display_pairing_code`, `redeem_display_pairing_code`, `get_display_session_details`, `list_paired_displays`, `revoke_display_pairing`) exatamente como em `contracts/`, cada uma com owner `postgres`, `REVOKE ALL` + `GRANT EXECUTE TO authenticated`
+- [X] T011 Concluir o mesmo arquivo, parte 4: `ALTER PUBLICATION supabase_realtime ADD TABLE public.display_pairings` no bloco idempotente `DO $$ IF NOT EXISTS $$`, `NOTIFY pgrst, 'reload schema'` e `COMMIT`
 
 ### Aplicar, verificar e regenerar tipos
 
-- [ ] T012 Aplicar somente a `018` com `npx --no-install supabase migration up --local`
-- [ ] T013 Verificar `20260817120000` em `npx --no-install supabase migration list --local`
-- [ ] T014 Regenerar `src/infrastructure/supabase/database.types.ts` em UTF-8 sem BOM (`System.IO.File.WriteAllText`/`UTF8Encoding(false)`, inspeção de bytes contra BOM/UTF-16) e confirmar as cinco RPCs em `Database['public']['Functions']` antes de qualquer tarefa TypeScript
+- [X] T012 Aplicar somente a `018` com `npx --no-install supabase migration up --local`
+- [X] T013 Verificar `20260817120000` em `npx --no-install supabase migration list --local`
+- [X] T014 Regenerar `src/infrastructure/supabase/database.types.ts` em UTF-8 sem BOM (`System.IO.File.WriteAllText`/`UTF8Encoding(false)`, inspeção de bytes contra BOM/UTF-16) e confirmar as cinco RPCs em `Database['public']['Functions']` antes de qualquer tarefa TypeScript
 
 ### Gates de segurança (bloqueantes) + demais suites SQL
 
-- [ ] T015 **GATE — SC-003**: executar `npx --no-install supabase test db supabase/tests/004_display_pairing_privileges.sql --local`; falha aqui bloqueia a entrega da feature, não a escrita de código de aplicação
-- [ ] T016 **GATE — SC-004**: executar `npx --no-install supabase test db supabase/tests/004_display_pairing_rls.sql --local`; falha aqui bloqueia a entrega da feature, não a escrita de código de aplicação
-- [ ] T017 Executar `npx --no-install supabase test db supabase/tests/004_display_pairing_codes.sql --local`
+- [X] T015 **GATE — SC-003**: executar `npx --no-install supabase test db supabase/tests/004_display_pairing_privileges.sql --local`; falha aqui bloqueia a entrega da feature, não a escrita de código de aplicação
+- [X] T016 **GATE — SC-004**: executar `npx --no-install supabase test db supabase/tests/004_display_pairing_rls.sql --local`; falha aqui bloqueia a entrega da feature, não a escrita de código de aplicação
+- [X] T017 Executar `npx --no-install supabase test db supabase/tests/004_display_pairing_codes.sql --local`
 
 **T018 removido**: era a execução de `004_display_pairing_rate_limit.sql`, apagado junto com T007. Numeração das demais tarefas não foi alterada.
 
 ### Domínio e erros compartilhados
 
-- [ ] T019 [P] Escrever `src/domain/__tests__/display-pairing.types.test.ts` para os schemas Zod `z.strictObject` das três RPCs `RETURNS TABLE` de cardinalidade um e do array de `list_paired_displays`
-- [ ] T020 Implementar `src/domain/display-pairing.types.ts` (tipos + schemas), executar T019
-- [ ] T021 [P] Adicionar `PAIRING_CODE_INVALID` e `PAIRING_NOT_FOUND_OR_FORBIDDEN` a `ErrorCode`/`USER_MESSAGES` em `src/domain/errors.types.ts`
-- [ ] T022 Estender `DOMAIN_CODES` em `src/application/session/session-error.mapper.ts` com os dois códigos novos e o teste correspondente em `src/application/__tests__/session-error.mapper.test.ts`
+- [X] T019 [P] Escrever `src/domain/__tests__/display-pairing.types.test.ts` para os schemas Zod `z.strictObject` das três RPCs `RETURNS TABLE` de cardinalidade um e do array de `list_paired_displays`
+- [X] T020 Implementar `src/domain/display-pairing.types.ts` (tipos + schemas), executar T019
+- [X] T021 [P] Adicionar `PAIRING_CODE_INVALID` e `PAIRING_NOT_FOUND_OR_FORBIDDEN` a `ErrorCode`/`USER_MESSAGES` em `src/domain/errors.types.ts`
+- [X] T022 Estender `DOMAIN_CODES` em `src/application/session/session-error.mapper.ts` com os dois códigos novos e o teste correspondente em `src/application/__tests__/session-error.mapper.test.ts`
 
 **Checkpoint**: migration aplicada, tipos regenerados, T015 (SC-003) e T016 (SC-004) verdes, T017 verde, domínio/erros prontos — só agora começam as histórias de usuário.
 
@@ -62,32 +62,32 @@
 
 ### Server Actions / queries
 
-- [ ] T023 [P] [US1] Escrever `src/application/display-pairing/__tests__/generate-display-pairing-code.action.test.ts`
-- [ ] T024 [US1] Implementar `src/application/display-pairing/generate-display-pairing-code.action.ts`, executar T023
-- [ ] T025 [P] [US1] Escrever `src/application/display-pairing/__tests__/redeem-display-pairing-code.action.test.ts` (bootstrap `signInAnonymously`, mapeamento de `PAIRING_CODE_INVALID`/`SESSION_CLOSED`)
-- [ ] T026 [US1] Implementar `src/application/display-pairing/redeem-display-pairing-code.action.ts`, executar T025
-- [ ] T027 [P] [US1] Escrever `src/application/display-pairing/__tests__/get-display-session-details.test.ts`
-- [ ] T028 [US1] Implementar `src/application/display-pairing/get-display-session-details.ts`, executar T027
-- [ ] T029 [P] [US1] Escrever `src/application/display-pairing/__tests__/list-paired-displays.test.ts`
-- [ ] T030 [US1] Implementar `src/application/display-pairing/list-paired-displays.ts`, executar T029
+- [X] T023 [P] [US1] Escrever `src/application/display-pairing/__tests__/generate-display-pairing-code.action.test.ts`
+- [X] T024 [US1] Implementar `src/application/display-pairing/generate-display-pairing-code.action.ts`, executar T023
+- [X] T025 [P] [US1] Escrever `src/application/display-pairing/__tests__/redeem-display-pairing-code.action.test.ts` (bootstrap `signInAnonymously`, mapeamento de `PAIRING_CODE_INVALID`/`SESSION_CLOSED`)
+- [X] T026 [US1] Implementar `src/application/display-pairing/redeem-display-pairing-code.action.ts`, executar T025
+- [X] T027 [P] [US1] Escrever `src/application/display-pairing/__tests__/get-display-session-details.test.ts`
+- [X] T028 [US1] Implementar `src/application/display-pairing/get-display-session-details.ts`, executar T027
+- [X] T029 [P] [US1] Escrever `src/application/display-pairing/__tests__/list-paired-displays.test.ts`
+- [X] T030 [US1] Implementar `src/application/display-pairing/list-paired-displays.ts`, executar T029
 
 ### Hooks
 
-- [ ] T031 [P] [US1] Escrever `src/hooks/__tests__/useDisplayPairings.test.ts` (snapshot inicial + evento Realtime de `INSERT`/`UPDATE` em `display_pairings`)
-- [ ] T032 [US1] Implementar `src/hooks/useDisplayPairings.ts`, executar T031
+- [X] T031 [P] [US1] Escrever `src/hooks/__tests__/useDisplayPairings.test.ts` (snapshot inicial + evento Realtime de `INSERT`/`UPDATE` em `display_pairings`)
+- [X] T032 [US1] Implementar `src/hooks/useDisplayPairings.ts`, executar T031
 
 ### Componentes
 
-- [ ] T033 [P] [US1] Escrever `src/components/display/__tests__/DisplayPairingScreen.test.tsx` (input 6 caracteres, 48px, loading, toast de erro genérico)
-- [ ] T034 [US1] Implementar `src/components/display/DisplayPairingScreen.tsx`, executar T033
-- [ ] T035 [P] [US1] Escrever `src/components/dj/__tests__/DjDisplayPairingPanel.test.tsx` (gerar código, contagem regressiva local, contagem de telões pareados)
-- [ ] T036 [US1] Implementar `src/components/dj/DjDisplayPairingPanel.tsx` (sem botão de revogar ainda — isso é US5), executar T035
-- [ ] T037 [US1] Reescrever o gate de `app/sala/[code]/display/page.tsx`: `getSessionStatusRowByCode` → `getDisplaySessionDetails` → `DisplayPairingScreen` quando não autorizado, preservando inalterados `DisplayClosedState`/`SessionLifecycleProvider`/`DisplayExperience`
-- [ ] T038 [US1] Montar `DjDisplayPairingPanel` em `app/sala/[code]/dj/page.tsx` (ou `src/components/dj/DjDashboardExperience.tsx`), Server Component buscando o snapshot inicial via `listPairedDisplays`
+- [X] T033 [P] [US1] Escrever `src/components/display/__tests__/DisplayPairingScreen.test.tsx` (input 6 caracteres, 48px, loading, toast de erro genérico)
+- [X] T034 [US1] Implementar `src/components/display/DisplayPairingScreen.tsx`, executar T033
+- [X] T035 [P] [US1] Escrever `src/components/dj/__tests__/DjDisplayPairingPanel.test.tsx` (gerar código, contagem regressiva local, contagem de telões pareados)
+- [X] T036 [US1] Implementar `src/components/dj/DjDisplayPairingPanel.tsx` (sem botão de revogar ainda — isso é US5), executar T035
+- [X] T037 [US1] Reescrever o gate de `app/sala/[code]/display/page.tsx`: `getSessionStatusRowByCode` → `getDisplaySessionDetails` → `DisplayPairingScreen` quando não autorizado, preservando inalterados `DisplayClosedState`/`SessionLifecycleProvider`/`DisplayExperience`
+- [X] T038 [US1] Montar `DjDisplayPairingPanel` em `app/sala/[code]/dj/page.tsx` (ou `src/components/dj/DjDashboardExperience.tsx`), Server Component buscando o snapshot inicial via `listPairedDisplays`
 
 ### E2E
 
-- [ ] T039 [US1] Escrever `e2e/display-pairing-host-tv.spec.ts`: Host gera código numa aba, segunda aba resgata em `/sala/<code>/display`, telão aparece; reload da segunda aba mantém o telão sem pedir código de novo; painel do DJ mostra contagem 1
+- [X] T039 [US1] Escrever `e2e/display-pairing-host-tv.spec.ts`: Host gera código numa aba, segunda aba resgata em `/sala/<code>/display`, telão aparece; reload da segunda aba mantém o telão sem pedir código de novo; painel do DJ mostra contagem 1
 
 **Checkpoint**: US1 funcional e testável de forma independente. Não é considerada pronta enquanto T015/T016 não estiverem verdes.
 

@@ -2,18 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { redirect } from 'next/navigation';
 import PublicDisplayPage from '@/app/sala/[code]/display/page';
-import {
-  getHostSessionDetails,
-  getSessionStatusRowByCode,
-} from '@/src/infrastructure/supabase/queries/session.queries';
+import { getSessionStatusRowByCode } from '@/src/infrastructure/supabase/queries/session.queries';
+import { getDisplaySessionDetails } from '@/src/application/display-pairing/get-display-session-details';
 import { generateRoomEntryQr } from '@/src/infrastructure/qr/room-entry-qr.server';
 
 vi.mock('next/navigation', () => ({
   redirect: vi.fn(() => { throw new Error('NEXT_REDIRECT'); }),
 }));
 vi.mock('@/src/infrastructure/supabase/queries/session.queries', () => ({
-  getHostSessionDetails: vi.fn(),
   getSessionStatusRowByCode: vi.fn(),
+}));
+vi.mock('@/src/application/display-pairing/get-display-session-details', () => ({
+  getDisplaySessionDetails: vi.fn(),
 }));
 vi.mock('@/src/infrastructure/qr/room-entry-qr.server', () => ({
   generateRoomEntryQr: vi.fn(),
@@ -28,6 +28,11 @@ vi.mock('@/src/components/display/DisplayExperience', () => ({
     <div data-testid="display-experience">Telão autorizado {code}</div>
   ),
 }));
+vi.mock('@/src/components/display/DisplayPairingScreen', () => ({
+  DisplayPairingScreen: ({ roomCode }: { roomCode: string }) => (
+    <div data-testid="display-pairing-screen">Parear {roomCode}</div>
+  ),
+}));
 
 const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 
@@ -40,64 +45,61 @@ describe('PublicDisplayPage', () => {
       status: 'active',
       closed_at: null,
     });
-    vi.mocked(getHostSessionDetails).mockResolvedValue({
+    vi.mocked(getDisplaySessionDetails).mockResolvedValue({
       id: SESSION_ID,
       code: 'ABC234',
       status: 'active',
       closedAt: null,
-      createdAt: '2026-08-11T20:00:00.000Z',
-      maxParticipants: 50,
-      maxQueueEntries: 200,
     });
     vi.mocked(generateRoomEntryQr).mockReturnValue({ status: 'origin-not-configured' });
   });
 
-  it('normaliza o código e só monta a tela depois de confirmar propriedade', async () => {
+  it('normaliza o código e só monta a tela depois de confirmar autorização (Host ou telão pareado)', async () => {
     render(await PublicDisplayPage({ params: Promise.resolve({ code: ' abc234 ' }) }));
 
     expect(getSessionStatusRowByCode).toHaveBeenCalledWith('ABC234');
-    expect(getHostSessionDetails).toHaveBeenCalledWith(SESSION_ID);
+    expect(getDisplaySessionDetails).toHaveBeenCalledWith(SESSION_ID);
     expect(generateRoomEntryQr).toHaveBeenCalledWith('ABC234');
     expect(screen.getByText('Telão autorizado ABC234')).toBeDefined();
   });
 
-  it('redireciona sala invisível ou inexistente sem consultar propriedade', async () => {
+  it('mostra a tela de pareamento — não redireciona — quando a sala é invisível ou inexistente (FR-008)', async () => {
     vi.mocked(getSessionStatusRowByCode).mockResolvedValue(null);
 
-    await expect(PublicDisplayPage({ params: Promise.resolve({ code: 'ABC234' }) }))
-      .rejects.toThrow('NEXT_REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/sala/ABC234');
-    expect(getHostSessionDetails).not.toHaveBeenCalled();
+    render(await PublicDisplayPage({ params: Promise.resolve({ code: 'ABC234' }) }));
+
+    expect(redirect).not.toHaveBeenCalled();
+    expect(getDisplaySessionDetails).not.toHaveBeenCalled();
     expect(generateRoomEntryQr).not.toHaveBeenCalled();
+    expect(screen.getByTestId('display-pairing-screen')).toBeDefined();
+    expect(screen.getByText('Parear ABC234')).toBeDefined();
   });
 
-  it('aplica o mesmo redirecionamento quando a propriedade não é confirmada', async () => {
-    vi.mocked(getHostSessionDetails).mockResolvedValue(null);
+  it('mostra a tela de pareamento — não redireciona — quando a autorização não é confirmada (participante, revogado, etc.)', async () => {
+    vi.mocked(getDisplaySessionDetails).mockResolvedValue(null);
 
-    await expect(PublicDisplayPage({ params: Promise.resolve({ code: 'ABC234' }) }))
-      .rejects.toThrow('NEXT_REDIRECT');
-    expect(redirect).toHaveBeenCalledWith('/sala/ABC234');
+    render(await PublicDisplayPage({ params: Promise.resolve({ code: 'ABC234' }) }));
+
+    expect(redirect).not.toHaveBeenCalled();
     expect(generateRoomEntryQr).not.toHaveBeenCalled();
+    expect(screen.getByTestId('display-pairing-screen')).toBeDefined();
   });
 
-  it('redireciona código inválido antes de qualquer leitura', async () => {
+  it('redireciona código com formato inválido antes de qualquer leitura', async () => {
     await expect(PublicDisplayPage({ params: Promise.resolve({ code: 'invalido' }) }))
       .rejects.toThrow('NEXT_REDIRECT');
 
     expect(redirect).toHaveBeenCalledWith('/sala/INVALIDO');
     expect(getSessionStatusRowByCode).not.toHaveBeenCalled();
-    expect(getHostSessionDetails).not.toHaveBeenCalled();
+    expect(getDisplaySessionDetails).not.toHaveBeenCalled();
   });
 
   it('renderiza sala inicialmente encerrada no servidor sem dados ativos', async () => {
-    vi.mocked(getHostSessionDetails).mockResolvedValue({
+    vi.mocked(getDisplaySessionDetails).mockResolvedValue({
       id: SESSION_ID,
       code: 'ABC234',
       status: 'closed',
       closedAt: '2026-08-12T01:00:00.000Z',
-      createdAt: '2026-08-11T20:00:00.000Z',
-      maxParticipants: 50,
-      maxQueueEntries: 200,
     });
 
     render(await PublicDisplayPage({ params: Promise.resolve({ code: 'ABC234' }) }));
@@ -106,6 +108,7 @@ describe('PublicDisplayPage', () => {
     expect(generateRoomEntryQr).not.toHaveBeenCalled();
     expect(screen.queryByTestId('lifecycle-provider')).toBeNull();
     expect(screen.queryByTestId('display-experience')).toBeNull();
+    expect(screen.queryByTestId('display-pairing-screen')).toBeNull();
     expect(screen.queryByText('ABC234')).toBeNull();
     expect(document.querySelector('[data-display-join-panel]')).toBeNull();
     expect(document.querySelector('[data-display-queue-preview]')).toBeNull();

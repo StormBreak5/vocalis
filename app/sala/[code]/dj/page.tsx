@@ -3,6 +3,7 @@ import { DjDashboardExperience } from '@/src/components/dj/DjDashboardExperience
 import { DjNeonShell } from '@/src/components/dj/DjNeonShell';
 import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
 import { SessionLifecycleProvider } from '@/src/components/session/SessionLifecycleProvider';
+import { listPairedDisplays } from '@/src/application/display-pairing/list-paired-displays';
 import { getParticipantsBySessionId } from '@/src/infrastructure/supabase/queries/participant.queries';
 import {
   getHostSessionDetails,
@@ -25,6 +26,9 @@ export default async function HostDashboardPage({
   const participants = session.status === 'closed'
     ? []
     : await getParticipantsBySessionId(session.id);
+  const pairedDisplays = session.status === 'closed'
+    ? []
+    : await listPairedDisplays(session.id);
 
   return (
     <DjNeonShell>
@@ -41,6 +45,7 @@ export default async function HostDashboardPage({
           sessionId={session.id}
           roomCode={session.code}
           initialParticipants={participants}
+          initialPairedDisplays={pairedDisplays}
         />
         <SessionClosedDialog appearance="neon" />
       </SessionLifecycleProvider>

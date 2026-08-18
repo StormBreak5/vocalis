@@ -6,12 +6,14 @@ import { Loader2, PauseCircle, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Participant } from '@/src/domain/participant.types';
 import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import type { PairedDisplaySummary } from '@/src/domain/display-pairing.types';
 import { updateQueueStatusAction } from '@/src/application/queue/update-queue-status.action';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { useSessionParticipants } from '@/src/hooks/useSessionParticipants';
 import { useSessionPresence } from '@/src/hooks/useSessionPresence';
+import { useDisplayPairings } from '@/src/hooks/useDisplayPairings';
 import { DjSessionHeader, type DjConnectionState } from './DjSessionHeader';
 import {
   DjCompactQueueList,
@@ -24,6 +26,7 @@ import {
   DjRealtimeNote,
   DjSessionMetrics,
 } from './DjParticipantsPanel';
+import { DjDisplayPairingPanel } from './DjDisplayPairingPanel';
 import type {
   DjQueueActionHandler,
   DjQueueActionKind,
@@ -103,10 +106,12 @@ export function DjDashboardExperience({
   sessionId,
   roomCode,
   initialParticipants,
+  initialPairedDisplays,
 }: {
   sessionId: string;
   roomCode: string;
   initialParticipants: Participant[];
+  initialPairedDisplays: PairedDisplaySummary[];
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const actionInFlightRef = useRef(false);
@@ -115,6 +120,7 @@ export function DjDashboardExperience({
   const { queue, isLoading, isOffline: queueIsOffline, resync } = useActiveQueue(sessionId);
   const participants = useSessionParticipants(sessionId, initialParticipants);
   const onlineParticipantIds = useSessionPresence(sessionId);
+  const pairedDisplays = useDisplayPairings(sessionId, initialPairedDisplays);
   const onlineParticipantCount = participants.filter(({ id }) => onlineParticipantIds.has(id)).length;
   const { isOnline } = useOnlineStatus();
 
@@ -186,6 +192,7 @@ export function DjDashboardExperience({
         <aside className={styles.sidebar}>
           <DjSessionMetrics queueCount={queue.length} participantCount={onlineParticipantCount} />
           <DjParticipantsPanel participants={participants} onlineParticipantIds={onlineParticipantIds} />
+          <DjDisplayPairingPanel sessionId={sessionId} pairedDisplays={pairedDisplays} />
           <DjRealtimeNote />
         </aside>
       </div>
@@ -210,6 +217,7 @@ export function DjDashboardExperience({
           <Tabs.Panel className={styles.tabPanel} value="participants" keepMounted data-empty-dock={!hasDock || undefined}>
             <DjSessionMetrics queueCount={queue.length} participantCount={onlineParticipantCount} />
             <DjParticipantsPanel participants={participants} onlineParticipantIds={onlineParticipantIds} />
+            <DjDisplayPairingPanel sessionId={sessionId} pairedDisplays={pairedDisplays} />
           </Tabs.Panel>
         </Tabs.Root>
         {hasDock && (
