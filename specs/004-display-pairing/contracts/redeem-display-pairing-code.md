@@ -18,14 +18,14 @@ Identidade só por `auth.uid()`; null retorna `UNAUTHORIZED` (o chamador da Serv
 Passos, nesta ordem:
 
 1. Resolve `v_session_id, v_status` por `SELECT id, status FROM public.sessions WHERE code = upper(trim(p_room_code))`. Não encontrado: `v_session_id` permanece `NULL` — **nenhuma exceção é levantada aqui**.
-2. `v_session_id IS NULL` → `PAIRING_CODE_INVALID`. Código de sala inexistente e código de pareamento errado produzem exatamente o mesmo erro — a tela de pareamento renderiza a mesma mensagem genérica nos dois casos, e nenhuma UI depende de diferenciá-los. Colapsar os dois é o que impede sondar códigos de sala por essa RPC: uma resposta distinguível revelaria se um código de sala existe ou não.
+2. `v_session_id IS NULL` → `PAIRING_CODE_INVALID`. Código de sala inexistente e código de pareamento errado produzem exatamente o mesmo erro — a tela de pareamento renderiza a mesma mensagem genérica nos dois casos, e nenhuma UI depende de diferenciá-los. O colapso não é para esconder se a sala existe — o produto já revela isso de propósito no fluxo de entrada (`join_session`/`JoinForm`, `SESSION_NOT_FOUND`) — é para manter esta RPC com um único caminho de falha, já que nada aqui consome a distinção (ver `research.md` R11).
 3. `v_status = 'closed'` → `SESSION_CLOSED`.
 4. `SELECT * FROM private.display_pairing_codes WHERE session_id = v_session_id AND code = upper(trim(p_pairing_code)) AND consumed_at IS NULL FOR UPDATE`. Não encontrado, ou encontrado com `expires_at <= now()` → `PAIRING_CODE_INVALID` (mesma exceção do passo 2).
 5. `UPDATE private.display_pairing_codes SET consumed_at = now(), consumed_by = auth.uid() WHERE id = v_code_id`.
 6. `INSERT INTO public.display_pairings (session_id, auth_user_id) VALUES (v_session_id, auth.uid()) ON CONFLICT ON CONSTRAINT display_pairings_session_identity_key DO UPDATE SET revoked_at = NULL, paired_at = now() WHERE public.display_pairings.revoked_at IS NOT NULL` — idempotente tanto para primeiro pareamento quanto para re-pareamento após revogação; identidade já pareada e ativa que resgata outro código válido apenas confirma o vínculo existente sem erro. `ON CONFLICT` nomeia a constraint em vez de listar colunas: um alvo por lista de colunas aqui é ambíguo contra o parâmetro OUT `session_id` desta própria função (`RETURNS TABLE(session_id uuid, ...)` declara `session_id` implicitamente como variável dentro do corpo plpgsql).
 7. `RETURN QUERY SELECT v_session_id, true`.
 
-Não há rate limit nem log de tentativas nesta RPC — ver `research.md` pela decisão de removê-los e o porquê. O espaço de códigos (32⁶ ≈ 1,07 bilhão) e a janela de expiração de 5 minutos já tornam força bruta inviável; o passo 2 (colapsar sala inexistente) é o que resta da defesa contra sondagem, e não depende de nenhum log.
+Não há rate limit nem log de tentativas nesta RPC — ver `research.md` pela decisão de removê-los e o porquê. O espaço de códigos (32⁶ ≈ 1,07 bilhão) e a janela de expiração de 5 minutos já tornam força bruta inviável contra o código de pareamento, que é o único dado secreto neste fluxo. O passo 2 (colapsar sala inexistente no mesmo erro) não é defesa contra sondagem de sala — é só manter um único caminho de falha para esta RPC (R11); a existência de uma sala já é pública em outro fluxo do produto (`join_session`).
 
 ## Concorrência
 
