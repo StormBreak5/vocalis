@@ -24,7 +24,7 @@ Crie os tipos de domínio, Server Actions, queries, hooks (`useDisplayPairings`)
 
 ## 4. Criar e aplicar a migration única
 
-Crie `supabase/migrations/20260817120000_018_display_pairing.sql` como uma única transação (`BEGIN`/`COMMIT`), na ordem descrita em `plan.md`: tabelas `private.display_pairing_codes`, `private.display_pairing_attempts`, `public.display_pairings` → helpers `is_paired_display`/`is_paired_display_open` → DROP+CREATE das policies de `sessions`/`queue` → policy de `display_pairings` → cinco RPCs → publication Realtime → `NOTIFY pgrst, 'reload schema'`.
+Crie `supabase/migrations/20260817120000_018_display_pairing.sql` como uma única transação (`BEGIN`/`COMMIT`), na ordem descrita em `plan.md`: tabelas `private.display_pairing_codes`, `public.display_pairings` → helpers `is_paired_display`/`is_paired_display_open` → DROP+CREATE das policies de `sessions`/`queue` → policy de `display_pairings` → cinco RPCs → publication Realtime → `NOTIFY pgrst, 'reload schema'`.
 
 ```powershell
 npx --no-install supabase migration up --local
@@ -51,10 +51,9 @@ Confirme as cinco RPCs em `Database['public']['Functions']` antes de compilar os
 npx --no-install supabase test db supabase/tests/004_display_pairing_codes.sql --local
 npx --no-install supabase test db supabase/tests/004_display_pairing_rls.sql --local
 npx --no-install supabase test db supabase/tests/004_display_pairing_privileges.sql --local
-npx --no-install supabase test db supabase/tests/004_display_pairing_rate_limit.sql --local
 ```
 
-O arquivo `004_display_pairing_privileges.sql` é o que prova SC-003: chama cada RPC de escrita existente do projeto (`create_queue_entry`, `cancel_queue_entry`, `update_queue_status`, `update_session_status`, `close_session`) com identidade de telão pareado e espera recusa em todas.
+O arquivo `004_display_pairing_privileges.sql` é o que prova SC-003: chama cada RPC de escrita existente do projeto (`create_queue_entry`, `cancel_queue_entry`, `update_queue_status`, `update_session_status`, `close_session`), mais as duas RPCs de escrita host-only desta feature (`generate_display_pairing_code`, `revoke_display_pairing`), com identidade de telão pareado, e espera recusa em todas.
 
 ## 7. Aplicação, tipos e testes de unidade
 

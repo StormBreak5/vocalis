@@ -115,7 +115,7 @@ Como Host, quero remover um telão pareado para encerrar o acesso de uma tela qu
 - Código já consumido é informado: mesma recusa amigável, sem revelar se o código existiu.
 - Código inexistente é informado: resposta indistinguível da de código expirado ou consumido, para não permitir sondagem.
 - Código de outra sessão é informado na rota de uma sessão diferente: recusado; o pareamento vale apenas para a sessão que o gerou.
-- Tentativas repetidas de adivinhar códigos: o sistema limita tentativas por identidade e por sessão, e a recusa não distingue os motivos.
+- Tentativas repetidas de adivinhar códigos: a recusa não distingue os motivos (código inexistente, expirado ou já consumido produzem a mesma resposta); o espaço de códigos (6 caracteres em alfabeto de 32, ≈1,07 bilhão de combinações) e a validade de 5 minutos tornam a sondagem exaustiva inviável sem necessidade de um limite de tentativas por identidade.
 - Host gera vários códigos sem resgatar: códigos anteriores não resgatados permanecem válidos até expirar, mas cada um só pareia uma TV.
 - Sessão é encerrada enquanto a tela de pareamento está aberta: o resgate é recusado.
 - Sessão é encerrada com telões pareados: todos os pareamentos deixam de conceder acesso.
@@ -141,7 +141,7 @@ Como Host, quero remover um telão pareado para encerrar o acesso de uma tela qu
 - **FR-012**: Um telão autorizado MUST NOT obter acesso a qualquer sessão além daquela para a qual foi pareado.
 - **FR-013**: Um telão autorizado MUST receber atualizações de sessão e de fila em tempo real, com a mesma resiliência de reconexão do telão do Host.
 - **FR-014**: O encerramento da sessão MUST revogar todos os pareamentos associados a ela.
-- **FR-015**: O sistema MUST limitar tentativas de resgate por identidade e por sessão, e MUST responder de forma indistinguível a código inexistente, expirado ou já consumido.
+- **FR-015**: O sistema MUST responder de forma indistinguível a código de pareamento inexistente, expirado ou já consumido, e a código de sala inexistente informado nesse mesmo fluxo.
 - **FR-016**: O Host MUST conseguir visualizar quantos telões estão pareados na sessão corrente.
 - **FR-017**: O Host SHOULD conseguir revogar individualmente um telão pareado.
 - **FR-018**: Toda concessão e todo consumo de pareamento MUST ser decidido no banco, por RPC `SECURITY DEFINER`, nunca por lógica de cliente.

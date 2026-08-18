@@ -16,13 +16,13 @@
 
 **Alternatives rejected**: reaproveitar a tabela `participants` com uma flag `is_display` — poluiria a tabela que hoje é lida pela lista de participantes do DJ e obrigaria toda policy/query de `participants` a filtrar essa flag para não vazar telões como se fossem cantores (e vice-versa).
 
-## R3. Códigos e tentativas de pareamento ficam no schema `private`, não `public`
+## R3. Código de pareamento fica no schema `private`, não `public`
 
-**Decision**: `private.display_pairing_codes` e `private.display_pairing_attempts` são criadas no schema `private` já existente (introduzido na migration 016 para os helpers de RLS), sem nenhum GRANT a `PUBLIC`/`anon`/`authenticated`.
+**Decision**: `private.display_pairing_codes` é criada no schema `private` já existente (introduzido na migration 016 para os helpers de RLS), sem nenhum GRANT a `PUBLIC`/`anon`/`authenticated`.
 
-**Rationale**: PostgREST só expõe schemas na lista `db-schemas` (por padrão, só `public`). Nenhum cliente tem motivo legítimo para fazer `SELECT` direto nessas duas tabelas — o código retorna ao Host como valor de retorno da RPC `generate_display_pairing_code`, nunca por leitura de tabela. Ficarem fora do schema exposto é defesa em profundidade sem exigir policies "deny all" extras.
+**Rationale**: PostgREST só expõe schemas na lista `db-schemas` (por padrão, só `public`). Nenhum cliente tem motivo legítimo para fazer `SELECT` direto nessa tabela — o código retorna ao Host como valor de retorno da RPC `generate_display_pairing_code`, nunca por leitura de tabela. Ficar fora do schema exposto é defesa em profundidade sem exigir policy "deny all" extra.
 
-**Alternatives rejected**: `public` com RLS restritiva total — funciona, mas exige duas policies negativas só para recriar o que a ausência do schema já garante.
+**Alternatives rejected**: `public` com RLS restritiva total — funciona, mas exige uma policy negativa só para recriar o que a ausência do schema já garante.
 
 ## R4. `is_session_open` não é estendido — dois helpers novos nascem ao lado dele
 
@@ -56,13 +56,13 @@
 
 **Alternatives rejected**: expor uma leitura pública (sem RLS) de `sessions` por código só para resolver o id antes do pareamento — reabriria a superfície pública de lookup que a migration 016 fechou deliberadamente ("não existe policy pública de lookup").
 
-## R8. Rate limit e indistinguibilidade de erro (FR-015)
+## R8. Indistinguibilidade de erro (FR-015) sem rate limit
 
-**Decision**: `redeem_display_pairing_code` conta as tentativas recentes em `private.display_pairing_attempts` **antes** de gravar qualquer linha — por `(session_id, auth_user_id)` quando a sala resolve, por `auth_user_id` sozinho quando não resolve (`session_id` gravado `NULL` nesse caso — ver R11). Só grava a tentativa atual quando essa contagem ainda está abaixo de 10 em 5 minutos; acima disso, recusa com `PAIRING_CODE_INVALID` sem inserir e sem consultar a tabela de códigos. Sala inexistente, código de pareamento inexistente, expirado, já consumido e limite excedido produzem a mesma exceção.
+**Decision**: `redeem_display_pairing_code` não mantém nenhum log de tentativas nem contador. A defesa contra sondagem é inteiramente a resposta indistinguível: código de pareamento inexistente, expirado, já consumido e código de sala inexistente levantam todos a mesma exceção `PAIRING_CODE_INVALID`.
 
-**Rationale**: os Edge Cases da spec exigem recusa indistinguível para código inexistente/expirado/consumido, e FR-015 exige limite por identidade e por sessão. Um log append-only consultado por `COUNT` é o mecanismo mais simples que o banco já usa em outros lugares do projeto (mesma filosofia dos índices únicos parciais: a garantia mora no Postgres, não no cliente). Contar antes de gravar — em vez de gravar incondicionalmente e só então checar — é obrigatório: a tabela não tem purga e é alcançável por qualquer usuário anônimo autenticado, então um chamador já bloqueado que continuasse gravando uma linha por chamada faria do próprio mecanismo de rate limit um vetor de escrita sem limite.
+**Rationale**: os Edge Cases da spec exigem recusa indistinguível para código inexistente/expirado/consumido — essa parte não depende de contar tentativa nenhuma. A feature originalmente incluía um rate limit por identidade/sessão sobre uma tabela `private.display_pairing_attempts`; ele foi removido — ver R13 para a decisão completa e o porquê (o espaço de códigos por si só já torna força bruta inviável, e a tentativa de "logar antes de rejeitar" esbarrava numa tensão transacional real que um `RAISE EXCEPTION` não permite contornar em PL/pgSQL puro).
 
-**Alternatives rejected**: limitar por IP — Supabase não expõe IP de forma confiável dentro de uma função `SECURITY DEFINER` sem infraestrutura adicional (proxy headers), e `auth.uid()` já é a unidade de identidade que o resto do projeto usa. Gravar a tentativa incondicionalmente antes de contar — mais simples de escrever (um `INSERT` seguido de um `SELECT count(*)`), mas deixa a própria tabela de rate limit crescer sem limite quando o chamador já está bloqueado; rejeitada por essa razão.
+**Alternatives rejected**: limitar por IP — Supabase não expõe IP de forma confiável dentro de uma função `SECURITY DEFINER` sem infraestrutura adicional (proxy headers), e seria um mecanismo novo para um risco que R13 já mostra ser desprezível.
 
 ## R9. Painel do DJ usa Realtime em `display_pairings`, não polling nem refetch manual
 
@@ -82,12 +82,23 @@
 
 ## R11. `redeem_display_pairing_code` colapsa sala inexistente em `PAIRING_CODE_INVALID`
 
-**Decision**: o passo que resolve `p_room_code → session_id` não levanta mais `SESSION_NOT_FOUND`. Sala inexistente deixa `session_id` `NULL`; a tentativa entra na mesma contagem de rate limit que qualquer outra (por `auth_user_id` sozinho, já que não há sessão para escopar — ver R8) e, enquanto essa contagem estiver abaixo do limite, é registrada em `private.display_pairing_attempts` com `session_id` `NULL`. A função só recusa mais adiante com `PAIRING_CODE_INVALID` — o mesmo erro de código de pareamento errado, expirado ou consumido.
+**Decision**: o passo que resolve `p_room_code → session_id` não levanta `SESSION_NOT_FOUND`. Sala inexistente deixa `session_id` `NULL`, e a função só recusa mais adiante com `PAIRING_CODE_INVALID` — o mesmo erro de código de pareamento errado, expirado ou consumido.
 
-**Rationale**: a versão anterior levantava `SESSION_NOT_FOUND` antes de qualquer registro de tentativa, o que deixava a varredura de códigos de sala por esta RPC sem nenhum rate limit e tornava a resposta distinguível ("sala não existe" vs. "código errado") — inconsistente com a postura do resto do desenho (R8, Edge Cases da spec), que colapsa deliberadamente toda falha de pareamento num erro único justamente para impedir sondagem. A tela de pareamento (`DisplayPairingScreen`) renderiza a mesma mensagem genérica nos dois casos, então nada na UI perde informação. As outras quatro RPCs da feature mantêm `SESSION_NOT_FOUND_OR_FORBIDDEN` normalmente — elas só são alcançáveis por quem já tem algum vínculo (Host ou telão pareado) com a sessão, então não há superfície de sondagem por código de sala para fechar ali.
+**Rationale**: uma resposta que distinguisse "sala não existe" de "código de pareamento errado" permitiria sondar códigos de sala válidos por essa RPC, já que ela é alcançável por qualquer identidade autenticada sem nenhum vínculo prévio — inconsistente com a postura do resto do desenho (R8, Edge Cases da spec), que colapsa deliberadamente toda falha de pareamento num erro único. A tela de pareamento (`DisplayPairingScreen`) renderiza a mesma mensagem genérica nos dois casos, então nada na UI perde informação. As outras quatro RPCs da feature mantêm `SESSION_NOT_FOUND_OR_FORBIDDEN` normalmente — elas só são alcançáveis por quem já tem algum vínculo (Host ou telão pareado) com a sessão, então não há superfície de sondagem por código de sala para fechar ali. Esta decisão vale por si só, independentemente de existir ou não um rate limit — ver R13.
 
-**Alternatives rejected**: manter `SESSION_NOT_FOUND` e adicionar rate limit só para esse caminho — resolveria a ausência de limite, mas manteria a resposta distinguível, que é o problema mais importante dos dois (severidade baixa, mas gratuita de evitar já que a UI não usa a distinção).
+**Alternatives rejected**: manter `SESSION_NOT_FOUND` distinto — mais simétrico com as outras quatro RPCs, mas reabriria exatamente a sondagem de existência de sala que colapsar o erro existe para fechar.
 
 ## R12. Nota — códigos expirados não liberam o espaço de código (informativo, sem ação nesta feature)
 
 `display_pairing_codes_active_code_idx` é único em `(code) WHERE consumed_at IS NULL`; um código gerado e nunca resgatado ocupa esse código para sempre e a tabela cresce sem limite. Irrelevante na escala real (33^6 combinações contra poucos códigos por noite por bar), e não há necessidade de limpeza agora — registrado aqui só para não ser redescoberto como surpresa. Se uma rotina de limpeza for adicionada no futuro, ela precisa preservar linhas consumidas (auditoria) e remover só as expiradas e nunca consumidas.
+
+## R13. Rate limit removido — o espaço de códigos já é a defesa suficiente
+
+**Decision**: `private.display_pairing_attempts` não existe. `redeem_display_pairing_code` não conta nem grava nenhuma tentativa; a única defesa contra sondagem é a resposta indistinguível (R8, R11).
+
+**Rationale**: o código de pareamento tem 6 caracteres num alfabeto de 32 símbolos — 32⁶ ≈ 1,07 bilhão de combinações — e expira em 5 minutos. Um ataque de força bruta dentro dessa janela precisaria de ordem de 10⁸–10⁹ tentativas, inviável mesmo muitas ordens de grandeza acima do que a plataforma permite. O rate limit protegia contra um cenário que a própria matemática do espaço de códigos já torna impraticável, e seu custo era real e concreto: uma tabela inteira, um log de identidade e horário por tentativa (dado sensível por si só), e — o motivo decisivo — uma tensão transacional que se mostrou, na prática, impossível de resolver corretamente em PL/pgSQL puro. Um diagnóstico direto confirmou que `RAISE EXCEPTION` desfaz qualquer escrita feita antes dele na mesma chamada de função, mesmo com `BEGIN/EXCEPTION` interno relançando o erro — ou seja, a tentativa registrada antes da rejeição nunca sobrevivia à própria rejeição, e o mecanismo não limitava ninguém. A metade de FR-015 que efetivamente protege contra sondagem — respostas indistinguíveis — não depende desse log e permanece integralmente.
+
+**Alternatives rejected**:
+- **Transação autônoma via `dblink`/`pg_background`**: resolveria a tensão transacional (a escrita do log ocorreria numa conexão/transação separada, sobrevivendo ao `RAISE` da transação principal), mas introduz uma dependência de infraestrutura nova — não prevista em nenhum artefato desta feature — para defender contra um ataque que o espaço de códigos já torna inviável. Custo desproporcional ao risco.
+- **`redeem_display_pairing_code` retornar um status de falha em vez de lançar exceção**: permitiria logar a tentativa e ainda assim persistir o log, já que a função retornaria normalmente (sem `RAISE`, sem rollback). Rejeitada porque muda o contrato de erro desta RPC para um formato diferente de todas as outras RPCs do projeto — que sinalizam falha por `RAISE EXCEPTION`, consumida por `mapSessionError`/`session-error.mapper.ts` via correspondência de substring na mensagem — exigindo um caminho de tratamento de erro só para esta função na camada de aplicação.
+- **Manter o log sabendo que tentativas rejeitadas nunca persistem**: é o que o desenho anterior fazia de fato, mesmo sem essa ser a intenção documentada — mantém o custo (tabela, dado de identidade/horário) sem entregar a proteção que o log deveria fornecer. Rejeitada por não ter benefício real algum.

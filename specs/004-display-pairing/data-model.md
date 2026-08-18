@@ -36,27 +36,7 @@ Um código nunca é `UPDATE`ado além de `consumed_at`/`consumed_by`. Não há j
 
 Sem RLS: schema `private` não é exposto por PostgREST e não recebe nenhum GRANT a papéis web.
 
-## `private.display_pairing_attempts`
-
-Log append-only das chamadas de `redeem_display_pairing_code` que passaram pelo rate limit, usado só para o próprio rate limit.
-
-| Campo | Tipo | Regra |
-|---|---|---|
-| `id` | uuid | PK, `gen_random_uuid()` |
-| `session_id` | uuid | **NULL** — sessão resolvida a partir de `p_room_code`, ou NULL quando o código de sala não corresponde a nenhuma sessão |
-| `auth_user_id` | uuid | NOT NULL, FK → `auth.users(id)` |
-| `attempted_at` | timestamptz | NOT NULL DEFAULT `now()` |
-
-`redeem_display_pairing_code` conta as tentativas recentes **antes** de gravar qualquer linha; só insere quando a contagem ainda está abaixo do limite (ver contrato de `redeem_display_pairing_code`). Uma vez atingido o limite, a chamada é recusada com `PAIRING_CODE_INVALID` sem inserir — a tabela não tem purga, então gravar tentativas já bloqueadas a tornaria ela própria um vetor de escrita sem limite para qualquer usuário anônimo autenticado. `session_id` nulo (código de sala inexistente) é gravado normalmente enquanto a chamada ainda estiver sob o limite — é o que fecha a sondagem de códigos de sala sob o mesmo rate limit do código de pareamento (ver `research.md`).
-
-```sql
-CREATE INDEX display_pairing_attempts_identity_idx
-  ON private.display_pairing_attempts (auth_user_id, attempted_at);
-```
-
-O índice é liderado por `auth_user_id`, não por `(session_id, auth_user_id)`: a contagem do rate limit passa a ser sempre por `auth_user_id` (com `session_id` como filtro adicional só quando não nulo — ver contrato de `redeem_display_pairing_code`), e `session_id` nulo não pode liderar um índice usado para agrupar tentativas da mesma identidade contra salas inexistentes.
-
-Nenhuma linha é atualizada ou removida por código de aplicação; o volume esperado (tentativas de pareamento por bar, por noite) não justifica retenção/purge nesta feature.
+Não há tabela de log de tentativas. O rate limit por identidade/sessão foi removido do desenho — ver `research.md` pela decisão e o motivo (espaço de códigos de 32⁶ ≈ 1,07 bilhão contra uma janela de 5 minutos torna força bruta inviável, e a tentativa de logar antes de rejeitar esbarrava numa tensão transacional real: um `RAISE EXCEPTION` desfaz qualquer escrita feita antes dele na mesma chamada). A metade de FR-015 que independe do log — respostas indistinguíveis entre código inexistente, expirado, já consumido e sala inexistente — continua garantida só pelo `redeem_display_pairing_code` colapsar todos esses casos na mesma exceção `PAIRING_CODE_INVALID`.
 
 ## `public.display_pairings`
 

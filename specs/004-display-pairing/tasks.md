@@ -14,18 +14,19 @@
 
 ## Phase 2 — Foundational (bloqueante para todas as histórias)
 
-**⚠️ CRITICAL**: nenhuma história começa antes desta fase — migration, tipos e os dois gates de segurança vivem aqui, porque as cinco RPCs e as três tabelas novas são criadas numa única transação e servem a todas as histórias.
+**⚠️ CRITICAL**: nenhuma história começa antes desta fase — migration, tipos e os dois gates de segurança vivem aqui, porque as cinco RPCs e as duas tabelas novas são criadas numa única transação e servem a todas as histórias.
 
 ### Testes pgTAP primeiro (escritos antes da migration existir — devem FALHAR até T008–T011)
 
 - [ ] T004 [P] Escrever `supabase/tests/004_display_pairing_codes.sql`: geração host-only, sessão fechada rejeitada, colisão/retry, unicidade parcial, expiração, consumo único, resgate concorrente (duas transações `pg` disputando o mesmo código), `list_paired_displays` vazio/populado/host-only
 - [ ] T005 [P] Escrever `supabase/tests/004_display_pairing_rls.sql` — **arquivo do gate SC-004**: `sessions`/`queue` liberadas para telão pareado (aberto e, no caso de `sessions`, também fechado); `participants` bloqueada para telão pareado em todo estado; isolamento entre sessões; acesso revogado após `revoke_display_pairing` e após `close_session`
 - [ ] T006 [P] Escrever `supabase/tests/004_display_pairing_privileges.sql` — **arquivo do gate SC-003**: as cinco RPCs de escrita pré-existentes (`create_queue_entry`, `cancel_queue_entry`, `update_queue_status`, `update_session_status`, `close_session`) chamadas com identidade de telão pareado, todas recusadas, **e também `generate_display_pairing_code` e `revoke_display_pairing`** — as duas RPCs de escrita host-only desta própria feature — chamadas com a mesma identidade, ambas recusadas; um telão que conseguisse cunhar código de pareamento ou revogar outro telão seria a escalada de privilégio que a User Story 3 existe para impedir
-- [ ] T007 [P] Escrever `supabase/tests/004_display_pairing_rate_limit.sql`: 10 tentativas registradas seguidas de recusa indistinguível sem gravação na 11ª, tanto com sessão resolvida (`session_id`+`auth_user_id`) quanto com código de sala inexistente (`auth_user_id` sozinho, `session_id` nulo)
+
+**T007 removido**: era `supabase/tests/004_display_pairing_rate_limit.sql`. O rate limit por identidade/sessão foi removido do desenho (decisão registrada em `research.md` R13) — o espaço de códigos (32⁶ ≈ 1,07 bilhão de combinações) e a validade de 5 minutos já tornam força bruta inviável, e a tentativa de logar antes de rejeitar esbarrava numa tensão transacional real (`RAISE EXCEPTION` desfaz qualquer escrita feita antes dele na mesma chamada, mesmo com captura interna). Numeração das demais tarefas não foi alterada.
 
 ### Migration única `018` (mesmo arquivo, partes sequenciais — não paralelizável)
 
-- [ ] T008 Criar `supabase/migrations/20260817120000_018_display_pairing.sql` parte 1: `private.display_pairing_codes`, `private.display_pairing_attempts`, `public.display_pairings` com constraints/índices de `data-model.md`, e `REVOKE ALL` explícito das três tabelas para `PUBLIC, anon, authenticated`
+- [ ] T008 Criar `supabase/migrations/20260817120000_018_display_pairing.sql` parte 1: `private.display_pairing_codes`, `public.display_pairings` com constraints/índices de `data-model.md`, e `REVOKE ALL` explícito das duas tabelas para `PUBLIC, anon, authenticated`
 - [ ] T009 Continuar o mesmo arquivo, parte 2: helpers `private.is_paired_display`/`private.is_paired_display_open`; `DROP POLICY`+`CREATE POLICY` de `sessions_select_owned_member_or_display` e `queue_select_authorized_open_host_or_display`; `CREATE POLICY display_pairings_select_host`; `GRANT SELECT (id, session_id, paired_at, revoked_at)` em `display_pairings`
 - [ ] T010 Continuar o mesmo arquivo, parte 3: as cinco RPCs (`generate_display_pairing_code`, `redeem_display_pairing_code`, `get_display_session_details`, `list_paired_displays`, `revoke_display_pairing`) exatamente como em `contracts/`, cada uma com owner `postgres`, `REVOKE ALL` + `GRANT EXECUTE TO authenticated`
 - [ ] T011 Concluir o mesmo arquivo, parte 4: `ALTER PUBLICATION supabase_realtime ADD TABLE public.display_pairings` no bloco idempotente `DO $$ IF NOT EXISTS $$`, `NOTIFY pgrst, 'reload schema'` e `COMMIT`
@@ -41,7 +42,8 @@
 - [ ] T015 **GATE — SC-003**: executar `npx --no-install supabase test db supabase/tests/004_display_pairing_privileges.sql --local`; falha aqui bloqueia a entrega da feature, não a escrita de código de aplicação
 - [ ] T016 **GATE — SC-004**: executar `npx --no-install supabase test db supabase/tests/004_display_pairing_rls.sql --local`; falha aqui bloqueia a entrega da feature, não a escrita de código de aplicação
 - [ ] T017 Executar `npx --no-install supabase test db supabase/tests/004_display_pairing_codes.sql --local`
-- [ ] T018 Executar `npx --no-install supabase test db supabase/tests/004_display_pairing_rate_limit.sql --local`
+
+**T018 removido**: era a execução de `004_display_pairing_rate_limit.sql`, apagado junto com T007. Numeração das demais tarefas não foi alterada.
 
 ### Domínio e erros compartilhados
 
@@ -50,7 +52,7 @@
 - [ ] T021 [P] Adicionar `PAIRING_CODE_INVALID` e `PAIRING_NOT_FOUND_OR_FORBIDDEN` a `ErrorCode`/`USER_MESSAGES` em `src/domain/errors.types.ts`
 - [ ] T022 Estender `DOMAIN_CODES` em `src/application/session/session-error.mapper.ts` com os dois códigos novos e o teste correspondente em `src/application/__tests__/session-error.mapper.test.ts`
 
-**Checkpoint**: migration aplicada, tipos regenerados, T015 (SC-003) e T016 (SC-004) verdes, T017/T018 verdes, domínio/erros prontos — só agora começam as histórias de usuário.
+**Checkpoint**: migration aplicada, tipos regenerados, T015 (SC-003) e T016 (SC-004) verdes, T017 verde, domínio/erros prontos — só agora começam as histórias de usuário.
 
 ## Phase 3 — User Story 1: Host pareia a TV do bar (P1) 🎯 MVP
 
@@ -147,13 +149,13 @@ Nenhuma tarefa de implementação nova — o modelo de dados já suporta N parea
 - [ ] T049 [P] Auditar ausência de polling/`setInterval` de servidor (o contador regressivo local do código de pareamento é cosmético, não busca dados) — `specs/004-display-pairing/validation/no-polling.md`
 - [ ] T050 Executar `npm run lint`, `npm run typecheck` e `npm run build`
 - [ ] T051 Executar `quickstart.md` passo a passo (validação manual equivalente a SC-001) e registrar em `specs/004-display-pairing/validation/quickstart-manual.md`
-- [ ] T052 Atualizar `AGENTS.md`: seção 4, acrescentar as três tabelas novas (`display_pairing_codes`, `display_pairing_attempts`, `display_pairings`) ao resumo do banco; seção 5.2, acrescentar as cinco RPCs novas (`generate_display_pairing_code`, `redeem_display_pairing_code`, `get_display_session_details`, `list_paired_displays`, `revoke_display_pairing`) à lista de RPCs disponíveis e registrar explicitamente que o telão pareado é um caminho de autorização estritamente somente leitura, sem nenhuma RPC de escrita aceitando essa identidade — AGENTS.md é carregado como contexto em toda sessão de agente, e já foi corrigido uma vez nesta mesma feature por descrever um schema defasado
+- [ ] T052 Atualizar `AGENTS.md`: seção 4, acrescentar as duas tabelas novas (`display_pairing_codes`, `display_pairings`) ao resumo do banco; seção 5.2, acrescentar as cinco RPCs novas (`generate_display_pairing_code`, `redeem_display_pairing_code`, `get_display_session_details`, `list_paired_displays`, `revoke_display_pairing`) à lista de RPCs disponíveis e registrar explicitamente que o telão pareado é um caminho de autorização estritamente somente leitura, sem nenhuma RPC de escrita aceitando essa identidade — AGENTS.md é carregado como contexto em toda sessão de agente, e já foi corrigido uma vez nesta mesma feature por descrever um schema defasado
 - [ ] T053 **GATE FINAL**: `supabase db reset --local` → reaplicar `018` → regenerar tipos → executar as quatro suites pgTAP (T015/T016 obrigatoriamente verdes) → `npx vitest run` → `npm run test:e2e` → lint → typecheck → build; registrar autorização em `specs/004-display-pairing/validation/final-gate.md`
 
 ## Dependências e caminho crítico
 
-- Setup `T001–T003` → Foundational `T004–T022`.
-- Dentro do Foundational: testes pgTAP `T004–T007` (podem ser escritos em paralelo, mas só passam depois da migration) → migration `T008–T011` (sequencial, mesmo arquivo) → aplicar `T012` → verificar `T013` → tipos `T014` → gates `T015`/`T016` → demais SQL `T017`/`T018` → domínio/erros `T019–T022`.
+- Setup `T001–T003` → Foundational `T004–T022` (T007 e T018 removidos — ver notas no lugar de cada um).
+- Dentro do Foundational: testes pgTAP `T004–T006` (podem ser escritos em paralelo, mas só passam depois da migration) → migration `T008–T011` (sequencial, mesmo arquivo) → aplicar `T012` → verificar `T013` → tipos `T014` → gates `T015`/`T016` → demais SQL `T017` → domínio/erros `T019–T022`.
 - **Nenhuma tarefa de US1/US3/US4/US2/US5 depende de T015 ou T016** — todas dependem só de T014 (tipos) e, quando aplicável, de T019–T022 (domínio/erros). T015/T016 são pré-requisito de *entrega* (checkpoint/gate final), não de *início* de nenhuma tarefa de aplicação.
 - US1 `T023–T039`: Server Actions (`T023–T030`) → hook (`T031–T032`) → componentes (`T033–T038`) → E2E (`T039`), todas dependendo de T014/T020/T022.
 - US3 `T040`: depende só de T033/T034 (componentes já existirem para auditar imports); seu checkpoint depende de T015/T016.
@@ -164,16 +166,16 @@ Nenhuma tarefa de implementação nova — o modelo de dados já suporta N parea
 
 ### Ordem única desta feature
 
-1. Testes pgTAP e migration, sem aplicação nenhuma ainda: `T004–T011`.
+1. Testes pgTAP e migration, sem aplicação nenhuma ainda: `T004–T006`, `T008–T011`.
 2. Aplicar `018`: `T012` → história `T013` → tipos `T014`.
-3. Gates bloqueantes `T015`/`T016` (SC-003/SC-004) → demais SQL `T017`/`T018`.
+3. Gates bloqueantes `T015`/`T016` (SC-003/SC-004) → demais SQL `T017`.
 4. Domínio/erros compartilhados: `T019–T022`.
 5. Server Actions → hooks → componentes → E2E, história por história: `T023–T039` (US1) → `T040` (US3) → `T041` (US4) → `T042` (US2) → `T043–T047` (US5).
 6. Polish e gate final: `T048–T053`.
 
 ### Paralelização
 
-- `T004–T007` (arquivos SQL distintos) em paralelo entre si; nenhum roda antes de `T008–T011` existir.
+- `T004–T006` (arquivos SQL distintos) em paralelo entre si; nenhum roda antes de `T008–T011` existir.
 - `T008–T011` NÃO são `[P]` — mesmo arquivo, ordem interna obrigatória.
 - Dentro de cada história, os pares teste→implementação marcados `[P]` na tarefa de teste podem ser escritos em paralelo com os demais pares da mesma camada (todos os testes de Server Action de uma história em paralelo entre si, por exemplo); a tarefa de implementação nunca é `[P]` em relação ao seu próprio teste.
 - Nenhuma tarefa de migration, aplicação, gate ou geração de tipos é `[P]`.
@@ -192,4 +194,4 @@ Nenhuma tarefa de implementação nova — o modelo de dados já suporta N parea
 - Revogação (US5): `T047`.
 - Feature concluída somente com `T053` verde.
 
-**Total**: 53 tarefas. **MVP sugerido**: Setup + Foundational + User Story 1 (`T001–T039`).
+**Total**: 51 tarefas (IDs vão até T053, mas T007 e T018 foram removidos e não renumerados — ver notas nos respectivos lugares). **MVP sugerido**: Setup + Foundational + User Story 1 (`T001–T039`).
