@@ -316,6 +316,65 @@ ALTER FUNCTION public.revoke_display_pairing(uuid) OWNER TO postgres;
 REVOKE ALL ON FUNCTION public.revoke_display_pairing(uuid) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.revoke_display_pairing(uuid) TO authenticated;
 
+-- list_active_queue unifies queue reads for Host, session participant, and
+-- paired display behind one SECURITY DEFINER function. It replaces a
+-- PostgREST-embedded join (`.select('*, participants(display_name)')`) that
+-- required the caller to have RLS visibility into BOTH queue and
+-- participants simultaneously — true for Host and participant, but never
+-- true for a paired display (FR-010 forbids it the participants table on
+-- purpose). That JOIN silently returned participants=null for a paired
+-- display, and the caller masked it with a `'Cantor'` placeholder fallback
+-- instead of surfacing the failure. This function resolves display_name
+-- internally, without granting any new access to public.participants: the
+-- authorization check below is byte-for-byte the same USING clause as
+-- queue_select_authorized_open_host_or_display above, so nothing gains
+-- access to a queue row it couldn't already read via RLS, and the
+-- participants policy is untouched (see research.md R15).
+CREATE FUNCTION public.list_active_queue(p_session_id uuid)
+RETURNS TABLE(
+  id uuid,
+  session_id uuid,
+  participant_id uuid,
+  song_title varchar(100),
+  artist varchar(100),
+  status varchar(20),
+  "position" integer,
+  created_at timestamptz,
+  updated_at timestamptz,
+  participant_name text
+)
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+PARALLEL UNSAFE
+SET search_path = ''
+AS $$
+DECLARE
+  v_auth_user_id uuid := auth.uid();
+BEGIN
+  IF v_auth_user_id IS NULL THEN RAISE EXCEPTION 'AUTH_REQUIRED'; END IF;
+  IF NOT (
+    private.is_session_host(p_session_id)
+    OR private.is_session_open(p_session_id)
+    OR private.is_paired_display_open(p_session_id)
+  ) THEN
+    RAISE EXCEPTION 'SESSION_NOT_FOUND_OR_FORBIDDEN';
+  END IF;
+
+  RETURN QUERY
+  SELECT q.id, q.session_id, q.participant_id, q.song_title, q.artist, q.status,
+    q."position", q.created_at, q.updated_at, p.display_name
+  FROM public.queue AS q
+  JOIN public.participants AS p ON p.id = q.participant_id
+  WHERE q.session_id = p_session_id AND q.status IN ('pending', 'preparing', 'singing')
+  ORDER BY q."position" ASC;
+END
+$$;
+
+ALTER FUNCTION public.list_active_queue(uuid) OWNER TO postgres;
+REVOKE ALL ON FUNCTION public.list_active_queue(uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.list_active_queue(uuid) TO authenticated;
+
 -- Part 4: Realtime + reload -----------------------------------------------
 
 DO $$

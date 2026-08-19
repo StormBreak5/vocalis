@@ -20,7 +20,7 @@ Na prática, hoje o telão só funciona espelhando a tela do próprio aparelho d
 
 - Q: Uma sessão pode ter mais de um telão pareado simultaneamente? → A: Sim. Bares com TV no salão e no balcão são o cenário previsto; o modelo de dados suporta N telões por sessão.
 - Q: O pareamento sobrevive ao encerramento da sessão? → A: Não. O pareamento é escopado à sessão e desaparece com ela; cada noite exige novo pareamento, o que também limita a janela de exposição.
-- Q: O telão pareado pode ver a lista de participantes? → A: Não. O telão lê apenas o que já exibe hoje: estado da sessão, fila e código de entrada. Nomes fora da fila não são expostos em uma tela pública de bar.
+- Q: O telão pareado pode ver a lista de participantes? → A: Não. O telão lê apenas o que já exibe hoje: estado da sessão, fila e código de entrada. Nomes fora da fila não são expostos em uma tela pública de bar. Isso proíbe a RELAÇÃO de participantes da sessão — quem está presente, independentemente de ter pedido música — não o nome do cantor associado a uma entrada da fila que o telão já está autorizado a ler; sem esse nome, a tela "Cantando agora" perde sua própria razão de existir. O telão pareado nunca executa `SELECT` em `participants`, sob nenhuma hipótese — o nome do cantor na fila chega resolvido por uma RPC `SECURITY DEFINER` dedicada a `queue`, não por leitura direta daquela tabela.
 - Q: O telão pareado pode escrever alguma coisa? → A: Não, em nenhuma hipótese. É estritamente somente leitura; nenhuma RPC de escrita aceita a identidade de um telão.
 - Q: Qual a validade do código de pareamento? → A: 5 minutos, tempo suficiente para o Host gerar o código e caminhar até a TV, e curto o bastante para que um código visto por terceiros perca valor rapidamente.
 - Q: O código de pareamento pode ser usado mais de uma vez? → A: Não. É consumido no primeiro resgate bem-sucedido; parear uma segunda TV exige gerar outro código.
@@ -135,8 +135,8 @@ Como Host, quero remover um telão pareado para encerrar o acesso de uma tela qu
 - **FR-006**: O sistema MUST permitir que um navegador que não é o Host resgate um código válido e, com isso, torne-se um telão autorizado daquela sessão.
 - **FR-007**: Uma sessão MUST suportar múltiplos telões pareados simultaneamente.
 - **FR-008**: A rota do telão MUST apresentar a tela de pareamento quando o visitante não for nem o Host nem um telão autorizado, em vez de redirecionar.
-- **FR-009**: Um telão autorizado MUST conseguir ler estado da sessão, fila e código de entrada da sessão pareada.
-- **FR-010**: Um telão autorizado MUST NOT conseguir ler a lista de participantes.
+- **FR-009**: Um telão autorizado MUST conseguir ler estado da sessão, fila e código de entrada da sessão pareada, com o nome do cantor associado a cada entrada da fila — sem esse nome, o telão não exibe o mesmo conteúdo que já exibe hoje para o Host (linha "O telão pareado exibe exatamente o mesmo conteúdo..." nas Assumptions).
+- **FR-010**: Um telão autorizado MUST NOT conseguir ler a lista/relação de participantes da sessão (quem está presente, independentemente de estar na fila). Isso é distinto de ler o nome do cantor já associado a uma entrada da fila que o telão está autorizado a ver por FR-009 — essa leitura é permitida e não conta como acesso à lista de participantes.
 - **FR-011**: Um telão autorizado MUST NOT conseguir executar qualquer operação de escrita, em nenhuma tabela, por nenhum caminho.
 - **FR-012**: Um telão autorizado MUST NOT obter acesso a qualquer sessão além daquela para a qual foi pareado.
 - **FR-013**: Um telão autorizado MUST receber atualizações de sessão e de fila em tempo real, com a mesma resiliência de reconexão do telão do Host.

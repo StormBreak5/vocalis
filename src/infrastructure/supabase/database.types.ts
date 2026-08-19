@@ -246,6 +246,21 @@ export type Database = {
         Args: { p_code: string; p_display_name: string }
         Returns: Json
       }
+      list_active_queue: {
+        Args: { p_session_id: string }
+        Returns: {
+          artist: string
+          created_at: string
+          id: string
+          participant_id: string
+          participant_name: string
+          position: number
+          session_id: string
+          song_title: string
+          status: string
+          updated_at: string
+        }[]
+      }
       list_paired_displays: {
         Args: { p_session_id: string }
         Returns: {
