@@ -97,7 +97,7 @@
 
 **Independent Test**: autenticado como telão pareado, tentar cada RPC de escrita e a leitura de `participants` fora da interface — `supabase/tests/004_display_pairing_privileges.sql` (T006/T015) e `supabase/tests/004_display_pairing_rls.sql` (T005/T016) provam isso sozinhos, sem depender de nenhum código de aplicação novo.
 
-- [ ] T040 [US3] Auditar `src/components/display/*` e `src/application/display-pairing/*` confirmando ausência de qualquer import de `create-queue-entry.action`, `cancel-queue-entry.action`, `update-queue-status.action`, `update-session-status.action` ou `close-session.action`; registrar em `specs/004-display-pairing/validation/us3-no-write-imports.md`
+- [X] T040 [US3] Auditar `src/components/display/*` e `src/application/display-pairing/*` confirmando ausência de qualquer import de `create-queue-entry.action`, `cancel-queue-entry.action`, `update-queue-status.action`, `update-session-status.action` ou `close-session.action`; registrar em `specs/004-display-pairing/validation/us3-no-write-imports.md`
 
 **Checkpoint**: US3 satisfeita quando T015 (SC-003), T016 (SC-004) e T040 estiverem verdes. Esta história não introduz nenhuma tarefa de UI nova — ela prova uma propriedade do desenho de RLS/RPC já entregue na Fase 2.
 
@@ -107,7 +107,7 @@
 
 **Independent Test**: com uma TV pareada, pausar, derrubar a rede e encerrar a sessão, verificando que os estados aparecem como no telão do Host.
 
-- [ ] T041 [US4] Escrever `e2e/display-pairing-lifecycle.spec.ts`: TV pareada reflete pausa em tempo real, recupera estado após queda/retorno de rede, exibe `DisplayClosedState` ao encerramento, e reload pós-encerramento não reabre o telão ao vivo nem pede novo pareamento
+- [X] T041 [US4] Escrever `e2e/display-pairing-lifecycle.spec.ts`: TV pareada reflete pausa em tempo real, recupera estado após queda/retorno de rede, exibe `DisplayClosedState` ao encerramento, e reload pós-encerramento não reabre o telão ao vivo nem pede novo pareamento
 
 Nenhuma tarefa de implementação nova nesta fase — `useSessionLifecycle`, `useActiveQueue` e `DisplayExperience` já são agnósticos de identidade (ver `plan.md`) e foram validados por T037.
 
@@ -117,9 +117,21 @@ Nenhuma tarefa de implementação nova nesta fase — `useSessionLifecycle`, `us
 
 **Independent Test**: parear dois navegadores distintos na mesma sessão e verificar que ambos exibem o telão e recebem atualizações simultâneas.
 
-- [ ] T042 [US2] Escrever `e2e/display-pairing-multi-tv.spec.ts`: duas abas pareadas com dois códigos distintos na mesma sessão, painel do DJ mostra contagem 2 atualizando ao vivo, alteração na fila chega às duas TVs simultaneamente
+- [X] T042 [US2] Escrever `e2e/display-pairing-multi-tv.spec.ts`: duas abas pareadas com dois códigos distintos na mesma sessão, painel do DJ mostra contagem 2 atualizando ao vivo, alteração na fila chega às duas TVs simultaneamente
 
 Nenhuma tarefa de implementação nova — o modelo de dados já suporta N pareamentos por sessão (`UNIQUE (session_id, auth_user_id)`, sem limite de linhas) e a contagem já é live via T032.
+
+### Correção pós-implementação — `list_active_queue` (T054–T060)
+
+T042 expôs um defeito real e pré-existente (não introduzido por esta feature, mas só alcançável através dela): `src/application/queue/list-active-queue.action.ts` resolvia o nome do cantor na fila via um JOIN embutido do PostgREST (`.select('*, participants(display_name)')`), que exige RLS simultâneo em `queue` e `participants`. Telão pareado é a primeira identidade do projeto com acesso a `queue` sem acesso a `participants` (por desenho desta própria feature) — o JOIN sempre retornava `null` para essa identidade, e o código mascarava a falha com um fallback `|| 'Cantor'`, nunca antes exercitado. Ver `specs/004-display-pairing/research.md` R15 para a decisão completa.
+
+- [X] T054 Corrigir FR-009/FR-010 e a Clarification correspondente em `spec.md`: FR-010 proíbe a lista/relação de participantes da sessão, não o nome do cantor já associado a uma entrada da fila que FR-009 autoriza o telão a ler
+- [X] T055 Registrar a decisão em `research.md` (R15): unificar `list_active_queue` numa RPC `SECURITY DEFINER`, o porquê (JOIN de duas RLS, fallback mascarando a falha) e as alternativas rejeitadas (estender policy de `participants`; RPC de fila separada só para o telão)
+- [X] T056 Estender `supabase/migrations/20260817120000_018_display_pairing.sql` com `public.list_active_queue(p_session_id)`, `SECURITY DEFINER`, `RETURNS TABLE`, autorizando Host, participante da sessão ou telão pareado via os helpers `private.is_session_host`/`is_session_open`/`is_paired_display_open` já existentes (mesma condição de `queue_select_authorized_open_host_or_display`), sem alterar nenhuma policy
+- [X] T057 Escrever `supabase/tests/004_list_active_queue.sql`: Host, participante e telão pareado autorizados com nome correto (inclusive nome de outro participante, não só o próprio); identidade sem vínculo e telão de outra sessão recusados; sem autenticação recusado; status fora de pending/preparing/singing filtrado; ACL da função; policy de `participants` continua com exatamente uma entrada, sem `is_paired_display`
+- [X] T058 Reescrever `list-active-queue.action.ts` para chamar a RPC nova em vez do JOIN embutido; `ActiveQueueEntry` permanece idêntico (nenhum consumidor muda); eliminar o fallback `'Cantor'` — nome ausente/vazio agora é `RPC_RESULT_INVALID`, no espírito de `expectSingleRpcRow`; novo schema `activeQueueRpcRowSchema` em `src/domain/queue.types.ts`; teste unitário novo em `src/application/queue/__tests__/list-active-queue.action.test.ts` (não existia cobertura antes)
+- [X] T059 Corrigir `e2e/display-pairing-multi-tv.spec.ts` e o helper `pairDisplay` (`e2e/helpers/session.ts`): viewport de TV (1920×1080) antes de navegar para `/sala/[code]/display` — o CSS de `.flow` assume viewport largo e colapsa no viewport móvel padrão assim que a fila deixa de estar vazia, algo que T041 nunca exercitou por manter a fila vazia; correção de asserção `exact:true` indevida (título/artista renderizam combinados num único nó de texto); confirmar T042 passa
+- [X] T060 Reconfirmar T015/T016 (gates SC-003/SC-004, `004_display_pairing_privileges.sql`/`004_display_pairing_rls.sql`) verdes sem nenhuma alteração — a policy de `participants` não muda; o acesso ao nome passa por `SECURITY DEFINER`, não por RLS nova
 
 ## Phase 7 — User Story 5: Host revoga um telão (P3)
 
@@ -194,4 +206,4 @@ Nenhuma tarefa de implementação nova — o modelo de dados já suporta N parea
 - Revogação (US5): `T047`.
 - Feature concluída somente com `T053` verde.
 
-**Total**: 51 tarefas (IDs vão até T053, mas T007 e T018 foram removidos e não renumerados — ver notas nos respectivos lugares). **MVP sugerido**: Setup + Foundational + User Story 1 (`T001–T039`).
+**Total**: 51 tarefas planejadas originalmente (IDs vão até T053, mas T007 e T018 foram removidos e não renumerados — ver notas nos respectivos lugares), mais T054–T060 (correção pós-implementação do `list_active_queue`, descoberta durante a validação de T042 — ver seção acima). **MVP sugerido**: Setup + Foundational + User Story 1 (`T001–T039`).
