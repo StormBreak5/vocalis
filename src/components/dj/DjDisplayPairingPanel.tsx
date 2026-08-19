@@ -40,10 +40,10 @@ export function DjDisplayPairingPanel({
   // Cosmetic countdown only: recomputes from an already-fetched expiresAt on
   // a local timer. Not a data fetch, not polling the server.
   useEffect(() => {
-    if (!generatedCode) {
-      setRemainingMs(null);
-      return;
-    }
+    // remainingMs só é lido pela UI dentro de `{generatedCode && (...)}`
+    // (abaixo), então não precisa ser resetado aqui — nenhum setState
+    // síncrono no corpo do efeito, só a assinatura do timer em si.
+    if (!generatedCode) return;
     const expiresAtMs = new Date(generatedCode.expiresAt).getTime();
     const tick = () => {
       const remaining = expiresAtMs - Date.now();

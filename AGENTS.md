@@ -8,7 +8,7 @@ Este é um aplicativo web voltado para mobile (Mobile-First / PWA) projetado par
 Três superfícies consomem o mesmo backend Supabase:
 - **Participante** (`/`, `/entrar`, `/sala/[code]`) — entra com código de 6 caracteres, pede música, acompanha a posição na fila.
 - **Host/DJ** (`/sala/[code]/dj`) — cria a sala, avança o status das músicas, pausa/retoma pedidos, encerra a sessão, vê participantes online.
-- **Telão** (`/sala/[code]/display`) — tela host-only para TV/projetor: "cantando agora", "próximo", fila resumida, QR code de entrada.
+- **Telão** (`/sala/[code]/display`) — tela para TV/projetor: "cantando agora", "próximo", fila resumida, QR code de entrada. Acessível ao Host **ou** a um telão pareado por código de pareamento de uso único gerado no painel do DJ (feature `004-display-pairing`) — quem não é nenhum dos dois vê uma tela de pareamento em vez de redirect.
 
 ## 2. Stack Tecnológico
 - **Runtime:** Node.js `24.13.1`, npm `11.8.0` (versões exatas fixadas em `.nvmrc`, `engines` e na CI — a CI falha se não baterem).
@@ -31,7 +31,7 @@ Três superfícies consomem o mesmo backend Supabase:
 
 ## 4. Estrutura do Banco de Dados
 
-> Fonte de verdade: `supabase/migrations/*.sql` + `src/infrastructure/supabase/database.types.ts` (gerado pela Supabase CLI). Este resumo reflete o estado após a migration `017`.
+> Fonte de verdade: `supabase/migrations/*.sql` + `src/infrastructure/supabase/database.types.ts` (gerado pela Supabase CLI). Este resumo reflete o estado após a migration `018`.
 
 ### sessions
 
@@ -71,6 +71,33 @@ Constraints: UNIQUE `(session_id, display_name, disambiguation_index)`; UNIQUE `
 
 **Sobre `position`:** é atribuído uma única vez no INSERT, como `COALESCE(MAX(position),0)+1` dentro da própria RPC. **Nunca é reescrito por UPDATE** em lugar nenhum do código. Não há reordenação nem reindexação ao cancelar/completar. Leitura sempre com `ORDER BY position ASC`.
 
+### private.display_pairing_codes
+
+Código de pareamento efêmero de uso único (feature `004-display-pairing`), no schema `private` — nunca exposto via PostgREST, só alcançável por RPC `SECURITY DEFINER`.
+
+- `id` — uuid PK
+- `session_id` — uuid FK → `sessions(id)` ON DELETE CASCADE
+- `code` — char(6), mesmo alfabeto de `sessions.code`
+- `created_at`, `expires_at` — timestamptz (expira 5 minutos após a criação)
+- `consumed_at` — timestamptz NULL, `consumed_by` — uuid NULL FK → `auth.users(id)`
+- `created_by` — uuid NOT NULL FK → `auth.users(id)` (o Host que gerou)
+
+Índice único parcial em `(code) WHERE consumed_at IS NULL` — impede colisão entre códigos ativos. Códigos expirados nunca liberam o próprio valor (espaço de 32⁶ combinações torna isso irrelevante na escala do produto).
+
+### public.display_pairings
+
+Vínculo durável entre um `auth.uid()` de telão e uma sessão — sobrevive enquanto a sessão existir, não expira sozinho (feature `004-display-pairing`).
+
+- `id` — uuid PK
+- `session_id` — uuid FK → `sessions(id)` ON DELETE CASCADE
+- `auth_user_id` — uuid FK → `auth.users(id)` — identidade anônima do telão pareado
+- `paired_at` — timestamptz
+- `revoked_at` — timestamptz NULL — revogação é lógica (`UPDATE`, nunca `DELETE`); re-parear a mesma identidade depois de revogada faz `UPSERT` (`revoked_at = NULL`) em vez de criar uma segunda linha
+
+UNIQUE `(session_id, auth_user_id)`. RLS: só o Host da sessão lê (`display_pairings_select_host`); a própria TV nunca consegue ler a própria linha. `GRANT SELECT` é de tabela inteira, não restrito por coluna — um grant restrito por coluna quebra silenciosamente qualquer leitura em formato `SELECT *`, inclusive a checagem de autorização que o Realtime faz internamente para `postgres_changes` (armadilha já pisada nesta feature; ver `specs/004-display-pairing/research.md`).
+
+**Telão pareado é um caminho de leitura, nunca de escrita**: nenhuma RPC de escrita do projeto (nem as pré-existentes, nem `generate_display_pairing_code`/`revoke_display_pairing`, as duas únicas de escrita desta feature) aceita a identidade de um telão pareado — todas exigem ser o Host. Um telão pareado também nunca lê `participants` — só `sessions`, `queue` (via `list_active_queue`, ver seção 5.2) e o próprio código de entrada.
+
 ## 5. Diretrizes de Arquitetura e Código
 
 ### 5.1 Arquitetura em camadas (NÃO NEGOCIÁVEL)
@@ -92,9 +119,11 @@ Use **Server Components** por padrão. `"use client"` apenas onde há interativi
 ### 5.2 Interações com Supabase
 - **Auth é 100% anônima** (`supabase.auth.signInAnonymously()`). Não existe senha, e-mail ou OAuth em lugar nenhum. Quem chama `create_session()` vira host daquela sala; quem chama `join_session()` vira participante.
 - **Não há rotas REST/`app/api/*`.** A superfície é Server Actions chamando RPCs.
-- **RPCs disponíveis:** `create_session()`, `join_session(p_code, p_display_name)`, `create_queue_entry(p_session_id, p_song_title, p_artist)`, `cancel_queue_entry(p_queue_id)`, `update_queue_status(p_queue_id, p_new_status)`, `update_session_status(p_session_id, p_new_status)`, `close_session(p_session_id)`, `get_host_session_details(p_session_id)`.
+- **RPCs disponíveis:** `create_session()`, `join_session(p_code, p_display_name)`, `create_queue_entry(p_session_id, p_song_title, p_artist)`, `cancel_queue_entry(p_queue_id)`, `update_queue_status(p_queue_id, p_new_status)`, `update_session_status(p_session_id, p_new_status)`, `close_session(p_session_id)`, `get_host_session_details(p_session_id)`, `list_active_queue(p_session_id)`, `generate_display_pairing_code(p_session_id)`, `redeem_display_pairing_code(p_room_code, p_pairing_code)`, `get_display_session_details(p_session_id)`, `list_paired_displays(p_session_id)`, `revoke_display_pairing(p_display_pairing_id)`.
+  - `list_active_queue` não é exclusiva do pareamento — é o caminho de leitura da fila para as **três** superfícies (Host, participante, telão pareado). Existe porque um `SELECT` direto com JOIN embutido do PostgREST (`.select('*, participants(display_name)')`) exige RLS simultâneo em `queue` **e** `participants`, e telão pareado tem a primeira sem ter a segunda — a RPC resolve o nome do cantor internamente via `SECURITY DEFINER` sem abrir `participants` para essa identidade. Se algum dia for reescrever a leitura da fila, é aqui, não num `.select()` novo.
+  - As outras cinco (`generate_display_pairing_code` até `revoke_display_pairing`) são da feature `004-display-pairing`; as duas de escrita (`generate_display_pairing_code`, `revoke_display_pairing`) só aceitam o Host da sessão.
 - **Toda RPC nova** precisa de `SECURITY DEFINER`, `SET search_path` explícito, e `REVOKE ALL ... GRANT EXECUTE TO authenticated` explícito. Nunca dependa do grant padrão a `PUBLIC` — a migration `017` existe justamente para corrigir uma falha causada por essa omissão.
-- **Realtime:** `postgres_changes` em `sessions`, `participants` e `queue`; canais de **Presence** para quem está online. Polling (`setInterval`) é PROIBIDO.
+- **Realtime:** `postgres_changes` em `sessions`, `participants`, `queue` e `display_pairings`; canais de **Presence** para quem está online. Polling (`setInterval`) é PROIBIDO.
 - **Resultado de RPC** que retorna `TABLE(...)` é validado com Zod `z.strictObject` e passa por `expectSingleRpcRow` — cardinalidade diferente de 1 é contrato quebrado, não erro de negócio.
 
 ### 5.3 Erros

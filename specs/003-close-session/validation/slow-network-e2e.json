@@ -14,8 +14,8 @@
     "duplicateCalls": 1,
     "noPrematureSuccess": true,
     "recoveredByPointRead": true,
-    "recoveredAfterMs": 1417
+    "recoveredAfterMs": 868
   },
   "verdict": "pass",
-  "measuredAt": "2026-08-19T00:28:04.388Z"
+  "measuredAt": "2026-08-19T01:02:19.101Z"
 }
