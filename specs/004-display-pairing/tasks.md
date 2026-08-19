@@ -141,17 +141,17 @@ T042 expôs um defeito real e pré-existente (não introduzido por esta feature,
 
 ### Server Actions
 
-- [ ] T043 [P] [US5] Escrever `src/application/display-pairing/__tests__/revoke-display-pairing.action.test.ts`
-- [ ] T044 [US5] Implementar `src/application/display-pairing/revoke-display-pairing.action.ts`, executar T043
+- [X] T043 [P] [US5] Escrever `src/application/display-pairing/__tests__/revoke-display-pairing.action.test.ts`
+- [X] T044 [US5] Implementar `src/application/display-pairing/revoke-display-pairing.action.ts`, executar T043
 
 ### Componentes
 
-- [ ] T045 [US5] Estender `src/components/dj/__tests__/DjDisplayPairingPanel.test.tsx` para o botão "Revogar" por item, chamada da RPC e atualização da lista via evento Realtime simulado
-- [ ] T046 [US5] Adicionar botão "Revogar" por telão pareado em `src/components/dj/DjDisplayPairingPanel.tsx`, chamando `revokeDisplayPairingAction`, executar T045
+- [X] T045 [US5] Estender `src/components/dj/__tests__/DjDisplayPairingPanel.test.tsx` para o botão "Revogar" por item, chamada da RPC e atualização da lista via evento Realtime simulado
+- [X] T046 [US5] Adicionar botão "Revogar" por telão pareado em `src/components/dj/DjDisplayPairingPanel.tsx`, chamando `revokeDisplayPairingAction`, executar T045
 
 ### E2E
 
-- [ ] T047 [US5] Escrever `e2e/display-pairing-revoke.spec.ts`: parear duas TVs, revogar uma pelo painel do DJ, a TV revogada perde acesso na próxima leitura/reconexão, a outra continua funcionando
+- [X] T047 [US5] Escrever `e2e/display-pairing-revoke.spec.ts`: parear duas TVs, revogar uma pelo painel do DJ, a TV revogada perde acesso na próxima leitura/reconexão, a outra continua funcionando
 
 **Checkpoint**: todas as cinco histórias funcionalmente completas.
 

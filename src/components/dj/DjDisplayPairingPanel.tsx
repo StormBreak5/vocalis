@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Loader2, MonitorPlay } from 'lucide-react';
+import { Loader2, MonitorPlay, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { generateDisplayPairingCodeAction } from '@/src/application/display-pairing/generate-display-pairing-code.action';
+import { revokeDisplayPairingAction } from '@/src/application/display-pairing/revoke-display-pairing.action';
 import type { PairedDisplaySummary } from '@/src/domain/display-pairing.types';
 import styles from './dj-dashboard.module.css';
 
@@ -12,6 +13,15 @@ function formatRemaining(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// pairedDisplays.id não tem nenhum rótulo humano — a RPC deliberadamente não
+// devolve nada além de id/paired_at (FR-010: nenhum dado de participants
+// vaza para o telão nem para esta lista). A posição no array, já ordenado
+// por paired_at pelo hook, mais o horário, é o mínimo para o Host distinguir
+// duas TVs numa mesma sessão sem nova coluna nem nova RPC — ver research.md.
+function formatPairedTime(pairedAt: string): string {
+  return new Date(pairedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 }
 
 export function DjDisplayPairingPanel({
@@ -24,6 +34,7 @@ export function DjDisplayPairingPanel({
   const [isPending, setIsPending] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [remainingMs, setRemainingMs] = useState<number | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Cosmetic countdown only: recomputes from an already-fetched expiresAt on
@@ -69,6 +80,27 @@ export function DjDisplayPairingPanel({
 
   const isExpired = remainingMs !== null && remainingMs <= 0;
 
+  // Sem estado otimista de propósito (plan.md): o próprio evento Realtime de
+  // UPDATE em display_pairings (revoked_at preenchido) é o que remove o item
+  // desta lista, via useDisplayPairings. A revogação em si não é instantânea
+  // para a TV afetada — ver research.md — mas a lista do Host reflete o
+  // commit assim que o evento chega, sem precisar de um segundo caminho de
+  // atualização local que poderia divergir do estado real do banco.
+  const handleRevoke = async (displayPairingId: string) => {
+    if (revokingId) return;
+    setRevokingId(displayPairingId);
+    try {
+      const result = await revokeDisplayPairingAction(displayPairingId);
+      if (!result.ok) {
+        toast.error('Erro ao revogar telão', { description: result.userMessage });
+      }
+    } catch {
+      toast.error('Erro inesperado ao revogar telão.');
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
   return (
     <section className={styles.card} aria-labelledby="dj-display-pairing-title" data-testid="dj-display-pairing-panel">
       <div className={styles.participantHeading}>
@@ -110,15 +142,30 @@ export function DjDisplayPairingPanel({
         <div className={styles.participantEmpty}>Nenhum telão pareado ainda.</div>
       ) : (
         <ul className={styles.participantList} aria-label="Telões pareados">
-          {pairedDisplays.map((display) => (
-            <li key={display.id} className={styles.participantRow} data-online>
-              <span className={styles.avatar} aria-hidden="true"><MonitorPlay size={16} /></span>
-              <div>
-                <div className={styles.participantName}>Telão</div>
-                <div className={styles.participantMeta} data-presence="online">Pareado</div>
-              </div>
-            </li>
-          ))}
+          {pairedDisplays.map((display, index) => {
+            const label = `Telão ${index + 1}`;
+            const isRevoking = revokingId === display.id;
+            return (
+              <li key={display.id} className={styles.participantRow} data-online>
+                <span className={styles.avatar} aria-hidden="true"><MonitorPlay size={16} /></span>
+                <div>
+                  <div className={styles.participantName}>{label}</div>
+                  <div className={styles.participantMeta} data-presence="online">Pareado às {formatPairedTime(display.pairedAt)}</div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.skipAction}
+                  onClick={() => void handleRevoke(display.id)}
+                  disabled={revokingId !== null}
+                  aria-busy={isRevoking}
+                  aria-label={`Revogar ${label}`}
+                >
+                  {isRevoking ? <Loader2 className={styles.spinner} size={17} aria-hidden="true" /> : <X size={17} aria-hidden="true" />}
+                  <span>{isRevoking ? 'Revogando…' : 'Revogar'}</span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
