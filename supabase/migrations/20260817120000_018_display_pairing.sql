@@ -9,6 +9,7 @@ BEGIN;
 CREATE SCHEMA IF NOT EXISTS private;
 ALTER SCHEMA private OWNER TO postgres;
 REVOKE ALL ON SCHEMA private FROM PUBLIC, anon, authenticated;
+GRANT USAGE ON SCHEMA private TO authenticated;
 
 CREATE TABLE private.display_pairing_codes (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
