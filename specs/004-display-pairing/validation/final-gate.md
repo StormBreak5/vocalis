@@ -1,7 +1,7 @@
 # T053 — Gate final
 
-Data: 2026-08-20
-Status: **AUTORIZADO.** Decisão consciente e documentada, tomada com base no critério de CI do projeto (job `e2e-chrome`) e em evidência extensa — não numa suíte 100% verde em todos os navegadores.
+Data: 2026-08-20 (revisão pós-CI: divergência de executor pgTAP corrigida)
+Status: **AUTORIZADO.** Decisão consciente e documentada, tomada com base no critério de CI do projeto (job `e2e-chrome`) e em evidência extensa — não numa suíte 100% verde em todos os navegadores. A CI pegou uma lacuna real na validação local (ver seção "Correção pós-fechamento" abaixo) antes deste gate chegar a produção — corrigida, com os nove arquivos pgTAP pré-existentes mais os quatro desta feature agora confirmados verdes pelo mesmo executor que a CI usa.
 
 ## Resumo da investigação (T061 → gate)
 
@@ -13,14 +13,30 @@ A primeira tentativa deste gate falhou em `display-pairing-revoke.spec.ts` no Mo
 
 **Verificação da correção**: 5 execuções dedicadas de `display-pairing-revoke.spec.ts` + `display-pairing-host-tv.spec.ts` contra Mobile Safari, 15/15 testes limpos, mais as 4 execuções completas de `npm run test:e2e` abaixo — em todas elas, 100% dos specs de pareamento passaram, nos dois navegadores.
 
+## Correção pós-fechamento — divergência de executor pgTAP entre validação local e CI
+
+**Este gate foi reaberto uma vez, depois de já registrado como autorizado.** A CI falhou no job `database`, etapa "Testes SQL pgTAP", com `[pgtap] Arquivos pgTAP ainda não aprovados no executor: 004_display_pairing_codes.sql, 004_display_pairing_privileges.sql, 004_display_pairing_rls.sql, 004_list_active_queue.sql.` — `scripts/supabase/pgtap.mjs` mantém uma lista `APPROVED_PGTAP_FILES` e falha se encontrar qualquer `.sql` em `supabase/tests/` fora dela; os quatro arquivos desta feature nunca tinham sido adicionados. Corrigido adicionando os quatro à lista, em ordem alfabética.
+
+**Isso expôs um problema mais sério do que a lista em si**: a validação deste gate (seção 1–5 abaixo, na primeira vez) rodou as quatro suítes novas via `npx supabase test db <arquivo> --local` — o executor da CLI do Supabase (`pg_prove`/psql, um statement por vez). A CI roda `npm run test:db` → `scripts/supabase/run-pgtap-local.mjs`: um executor próprio do projeto, que abre um cliente `pg` e manda cada arquivo inteiro como **uma única query multi-statement**, detectando falha por varredura de `"not ok"` na saída. Os quatro arquivos novos nunca tinham rodado por esse caminho — a CI foi a primeira vez, e o gate original presumiu, sem verificar, que os dois executores seriam equivalentes.
+
+Rodando `npm run test:db` de verdade (depois de corrigir a lista), as quatro suítes novas passaram sem nenhuma diferença de comportamento em relação à CLI — os mesmos 28/41/23/20 de antes. **O problema não estava nos arquivos novos.** Rodar a suíte completa pelo executor real, pela primeira vez, expôs que a migration `018` desta própria feature havia quebrado silenciosamente três asserções em arquivos pgTAP **pré-existentes**, nunca antes re-executados contra um banco com a `018` aplicada como parte de um `npm run test:db` completo (o gate original só confirmava "todas as 19 migrations reaplicadas" no reset, sem rodar pgTAP completo):
+
+1. `003_queue_rls.sql:18` — esperava a policy `queue_select_authorized_open_or_host`, mas a `018` a substituiu por `queue_select_authorized_open_host_or_display` (para incluir o telão pareado). Corrigido: asserção atualizada para o nome novo. **Aprovado explicitamente pelo autor da feature.**
+2. `003_sessions_rls.sql:17` — mesmo padrão: esperava `sessions_select_owned_or_member`, a `018` a substituiu por `sessions_select_owned_member_or_display`. Corrigido: asserção atualizada. **Aprovado explicitamente pelo autor da feature.**
+3. `003_session_privileges.sql:16` — esperava `USAGE` no schema `private` para `authenticated`. Nota de processo: a primeira versão deste documento descreveu esta correção como já aprovada e como um "aperto de privilégio intencional da 018" — nenhuma das duas afirmações é correta, e a segunda foi revertida (ver abaixo). A investigação técnica (montar um teste direto — INSERT de sessão + pareamento + `SET LOCAL ROLE authenticated` com a identidade do telão + `SELECT` em `public.sessions` — confirmando que a leitura funciona normalmente sem `USAGE` de schema, porque políticas RLS resolvem a função referenciada por OID já vinculado no momento em que o dono `postgres` criou a policy, não por resolução de nome em tempo de execução do papel chamador) estava correta e explica por que o acidente não quebrou nada em produção — mas não prova que a remoção do `GRANT USAGE` tenha sido deliberada. Comparando com a migration `016` (que faz o mesmo `REVOKE ALL` e, na linha seguinte, `GRANT USAGE ON SCHEMA private TO authenticated`), a `018` reproduz só o `REVOKE`, sem comentário nem decisão registrada explicando a omissão — sinal de linha perdida, não de escolha. **Revertido**: `GRANT USAGE ON SCHEMA private TO authenticated` restaurado em `supabase/migrations/20260817120000_018_display_pairing.sql`, logo após o `REVOKE ALL`, no mesmo padrão da `016`; a asserção de `003_session_privileges.sql` voltou ao texto original. Achado completo, incluindo a análise técnica preservada e a nota de que endurecer para `EXECUTE`-por-função é uma direção válida mas exige decisão própria, registrado em [`research.md` R20](../research.md).
+
+As duas correções de nome de policy não mudaram comportamento de produto — são renomeações que a própria `018` já tinha feito deliberadamente (a policy antiga não existe mais desde a `018`, só o nome no teste estava desatualizado). A terceira, ao contrário do que a primeira versão deste documento registrou, não era uma correção de teste — era a reversão de um acidente na migration.
+
+**Causa raiz corrigida em `specs/004-display-pairing/tasks.md`**: T015, T016, T017 e T057 (a suíte de `list_active_queue`) prescreviam validar com `npx supabase test db <arquivo> --local` — um comando que a CI nunca roda. Atualizados para `npm run test:db`, o mesmo caminho que a CI usa, para que validar localmente e validar na CI passem pelo mesmo motor a partir de agora.
+
 ## Sequência completa do gate
 
 ### 1–5. Reset, migration, tipos, pgTAP, vitest
 
-- `supabase db reset --local`: PASS, todas as 19 migrations reaplicadas.
-- Tipos regenerados: 12775 bytes, UTF-8 sem BOM.
-- pgTAP: `004_display_pairing_codes.sql` 28/28, `004_display_pairing_rls.sql` (T016) 41/41, `004_display_pairing_privileges.sql` (T015) 23/23, `004_list_active_queue.sql` 20/20.
-- `npx vitest run`: 65 arquivos, 415 testes, 415 passaram.
+- `supabase db reset --local` (via `npm run test:db:prepare`): PASS, todas as 19 migrations reaplicadas.
+- Tipos: inalterados nesta correção — a `018` ganhou um `GRANT` (privilégio, não forma de dado), sem migration nova; o restante são arquivos de teste pgTAP e `scripts/supabase/pgtap.mjs`.
+- pgTAP — **`npm run test:db` (o executor real da CI), não a CLI**: `13 arquivos aprovados`, 0 falhas — as nove suítes pré-existentes (`003_*` × 8, `017_session_ownership_integrity.sql`) mais as quatro desta feature (`004_display_pairing_codes.sql`, `004_display_pairing_privileges.sql`, `004_display_pairing_rls.sql`, `004_list_active_queue.sql`), todas na mesma execução, pelo mesmo motor que a CI usa.
+- `npm run test:unit`: 65 arquivos, 415 testes, 415 passaram.
 
 ### 6. `npm run test:e2e` — quatro execuções completas
 
@@ -45,7 +61,7 @@ Nenhuma dessas ocorrências foi corrigida nesta sessão — está fora do escopo
 
 ### 7–9. lint / typecheck / build
 
-`npm run lint`: PASS, sem erros. `npm run typecheck`: PASS, sem erros. `npm run build`: PASS, build concluído com sucesso.
+Reexecutados após a correção da divergência de executor pgTAP: `npm run lint`: PASS, sem erros. `npm run typecheck`: PASS, sem erros. `npm run build`: PASS, build concluído com sucesso (rotas inalteradas: `/`, `/entrar`, `/sala/[code]`, `/sala/[code]/dj`, `/sala/[code]/display`, `/manifest.webmanifest`).
 
 ## Autorização
 
