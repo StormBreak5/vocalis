@@ -31,8 +31,13 @@ test.describe('Pareamento de telão — Host pareia a TV do bar', () => {
       await tvPage.goto(`/sala/${code}/display`);
       await expect(tvPage.locator('[data-display-pairing-screen]')).toBeVisible();
 
+      // pressSequentially, não fill — ver comentário em e2e/helpers/session.ts
+      // pairDisplay(): fill() no WebKit pode setar o valor nativo do input
+      // sem disparar o onChange controlado do React de forma confiável,
+      // deixando o botão de submit preso em disabled mesmo com os 6
+      // caracteres corretos visíveis no DOM.
       const pairingInput = tvPage.getByLabel(/código de pareamento/i);
-      await pairingInput.fill(pairingCode);
+      await pairingInput.pressSequentially(pairingCode);
       await tvPage.getByRole('button', { name: 'Parear telão' }).click();
 
       // O telão precisa aparecer sem exigir mais nada do usuário — se o
@@ -66,7 +71,8 @@ test.describe('Pareamento de telão — Host pareia a TV do bar', () => {
 
       const tvPage = await tvContext.newPage();
       await tvPage.goto(`/sala/${code}/display`);
-      await tvPage.getByLabel(/código de pareamento/i).fill('ZZZZZZ');
+      // pressSequentially — ver comentário em e2e/helpers/session.ts pairDisplay().
+      await tvPage.getByLabel(/código de pareamento/i).pressSequentially('ZZZZZZ');
       await tvPage.getByRole('button', { name: 'Parear telão' }).click();
 
       await expect(tvPage.locator('#pairing-code-error')).toHaveText('Código de pareamento inválido ou expirado.');

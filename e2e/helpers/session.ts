@@ -99,7 +99,17 @@ export async function pairDisplay(hostPage: Page, code: string, tvPage: Page): P
   await tvPage.setViewportSize({ width: 1_920, height: 1_080 });
   await tvPage.goto(`/sala/${code}/display`);
   await expect(tvPage.locator('[data-display-pairing-screen]')).toBeVisible();
-  await tvPage.getByLabel(/código de pareamento/i).fill(pairingCode);
+  // pressSequentially, não fill: investigação com instrumentação (8 corridas
+  // limpas vs. ~57% de falha com fill) confirmou que fill() no WebKit às
+  // vezes seta o valor nativo do input sem disparar o onChange controlado do
+  // React de forma confiável — o DOM mostra os 6 caracteres corretos, mas o
+  // estado `code` do componente nunca atualiza, e o botão de submit fica
+  // preso em disabled. pressSequentially dispara teclas de verdade
+  // (keydown/input por caractere), o mesmo caminho que um usuário real digita
+  // e que o React sempre escuta corretamente — mesmo padrão já usado em
+  // `joinSession` acima.
+  const pairingInput = tvPage.getByLabel(/código de pareamento/i);
+  await pairingInput.pressSequentially(pairingCode);
   await tvPage.getByRole('button', { name: 'Parear telão' }).click();
   await expect(tvPage.locator('[data-display-pairing-screen]')).toHaveCount(0, { timeout: 15_000 });
 }
