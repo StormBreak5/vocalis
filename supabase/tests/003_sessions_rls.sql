@@ -14,7 +14,7 @@ INSERT INTO public.participants(session_id,display_name,auth_user_id) VALUES
 ('20000000-0000-4000-8000-000000000042','Member P','10000000-0000-4000-8000-000000000042'),
 ('20000000-0000-4000-8000-000000000043','Member C','10000000-0000-4000-8000-000000000042');
 SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid='public.sessions'::regclass),'RLS habilitada');
-SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname='public' AND tablename='sessions' AND policyname='sessions_select_owned_or_member'),1,'policy final presente');
+SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname='public' AND tablename='sessions' AND policyname='sessions_select_owned_member_or_display'),1,'policy final presente');
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname='public' AND policyname IN ('sessions_select_public','sessions_update_own','participants_select_session','Users can read active queue of their session','Host can update queue')),0,'policies legadas ausentes');
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname='public' AND (qual='true' OR with_check='true')),0,'sem predicado true');
 SELECT ok(EXISTS(SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND schemaname='public' AND tablename='sessions'),'sessions em Realtime');

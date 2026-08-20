@@ -10,6 +10,10 @@ export const APPROVED_PGTAP_FILES = Object.freeze([
   '003_session_privileges.sql',
   '003_session_writers.sql',
   '003_sessions_rls.sql',
+  '004_display_pairing_codes.sql',
+  '004_display_pairing_privileges.sql',
+  '004_display_pairing_rls.sql',
+  '004_list_active_queue.sql',
   '017_session_ownership_integrity.sql',
 ]);
 

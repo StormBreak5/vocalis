@@ -8,6 +8,7 @@ import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { useSessionParticipants } from '@/src/hooks/useSessionParticipants';
 import { useSessionPresence } from '@/src/hooks/useSessionPresence';
+import { useDisplayPairings } from '@/src/hooks/useDisplayPairings';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { updateQueueStatusAction } from '@/src/application/queue/update-queue-status.action';
 
@@ -15,6 +16,7 @@ vi.mock('@/src/hooks/useActiveQueue', () => ({ useActiveQueue: vi.fn() }));
 vi.mock('@/src/hooks/useOnlineStatus', () => ({ useOnlineStatus: vi.fn() }));
 vi.mock('@/src/hooks/useSessionParticipants', () => ({ useSessionParticipants: vi.fn() }));
 vi.mock('@/src/hooks/useSessionPresence', () => ({ useSessionPresence: vi.fn() }));
+vi.mock('@/src/hooks/useDisplayPairings', () => ({ useDisplayPairings: vi.fn() }));
 vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({ useSessionLifecycleContext: vi.fn() }));
 vi.mock('@/src/application/queue/update-queue-status.action', () => ({ updateQueueStatusAction: vi.fn() }));
 vi.mock('@/src/application/session/update-session-status.action', () => ({ updateSessionStatusAction: vi.fn() }));
@@ -55,6 +57,7 @@ function renderDashboard() {
       sessionId={SESSION_ID}
       roomCode="NEON42"
       initialParticipants={[]}
+      initialPairedDisplays={[]}
     />,
   );
 }
@@ -76,6 +79,7 @@ describe('DjDashboardExperience', () => {
       refresh: vi.fn(),
       resync,
     }));
+    vi.mocked(useDisplayPairings).mockReturnValue([]);
     vi.mocked(useSessionParticipants).mockReturnValue([
       {
         id: 'participant-1', sessionId: SESSION_ID, displayName: 'Marina Costa',

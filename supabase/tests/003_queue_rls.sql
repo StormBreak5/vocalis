@@ -15,7 +15,7 @@ INSERT INTO public.queue(session_id,participant_id,song_title,artist,status,posi
 ('20000000-0000-4000-8000-000000000061','30000000-0000-4000-8000-000000000061','Active','Artist','pending',1),
 ('20000000-0000-4000-8000-000000000062','30000000-0000-4000-8000-000000000062','Closed','Artist','pending',1);
 SELECT ok((SELECT relrowsecurity FROM pg_class WHERE oid='public.queue'::regclass),'RLS ativa');
-SELECT is((SELECT count(*)::int FROM pg_policies WHERE tablename='queue' AND policyname='queue_select_authorized_open_or_host'),1,'policy final');
+SELECT is((SELECT count(*)::int FROM pg_policies WHERE tablename='queue' AND policyname='queue_select_authorized_open_host_or_display'),1,'policy final');
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE tablename='queue' AND policyname='Users can read active queue of their session'),0,'legada ausente');
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims','{"sub":"10000000-0000-4000-8000-000000000061","role":"authenticated"}',true);

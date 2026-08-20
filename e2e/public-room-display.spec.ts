@@ -115,7 +115,13 @@ async function createParticipantWithSong(
 }
 
 test.describe('Telão Público Host-only', () => {
-  test('aplica autorização uniforme para participante, outro Host, anônimo e sala inexistente', async ({ browser }) => {
+  // Reescrito para a feature 004 (pareamento de telão): FR-008 substitui o
+  // redirect por uma tela de pareamento para quem não é Host nem telão
+  // pareado. O caminho do próprio Host (linhas 128-129 abaixo) não muda em
+  // nada. Só o destino de quem NÃO tem acesso muda — de redirect para a
+  // tela de pareamento — porque agora existe algo útil para essa pessoa
+  // fazer ali (parear), em vez de simplesmente ser expulsa.
+  test('mostra a tela de pareamento — não redireciona — para participante, outro Host, anônimo e sala inexistente', async ({ browser }) => {
     test.setTimeout(90_000);
     const hostContext = await browser.newContext();
     const participantContext = await browser.newContext();
@@ -131,20 +137,34 @@ test.describe('Telão Público Host-only', () => {
       const participantPage = await participantContext.newPage();
       await joinSession(participantPage, code, 'Participante Sem Acesso');
       await participantPage.goto(`/sala/${code}/display`);
-      await expect(participantPage).toHaveURL(new RegExp(`/sala/${code}$`));
-      await expect(participantPage.locator('[data-public-display]')).toHaveCount(0);
+      await expect(participantPage).toHaveURL(new RegExp(`/sala/${code}/display$`));
+      await expect(participantPage.getByRole('heading', { name: 'Parear este telão' })).toBeVisible();
+      await expect(participantPage.locator('[data-display-join-panel]')).toHaveCount(0);
 
       const otherHostPage = await otherHostContext.newPage();
       await createSession(otherHostPage);
       await otherHostPage.goto(`/sala/${code}/display`);
-      await expect(otherHostPage).toHaveURL(new RegExp(`/sala/${code}$`));
+      await expect(otherHostPage).toHaveURL(new RegExp(`/sala/${code}/display$`));
+      await expect(otherHostPage.getByRole('heading', { name: 'Parear este telão' })).toBeVisible();
 
       const anonymousPage = await anonymousContext.newPage();
       await anonymousPage.goto(`/sala/${code}/display`);
-      await expect(anonymousPage).toHaveURL(new RegExp(`/sala/${code}$`));
+      await expect(anonymousPage).toHaveURL(new RegExp(`/sala/${code}/display$`));
+      await expect(anonymousPage.getByRole('heading', { name: 'Parear este telão' })).toBeVisible();
 
+      // Código bem-formado mas inexistente: mesma tela de pareamento, não
+      // redireciona. A rota não tem como (nem deve) distinguir "sala não
+      // existe" de "sala existe mas você não tem vínculo" sem reabrir o
+      // lookup público que o projeto fechou deliberadamente para `sessions`.
       await hostPage.goto('/sala/ZZZ999/display');
-      await expect(hostPage).toHaveURL(/\/sala\/ZZZ999$/);
+      await expect(hostPage).toHaveURL(/\/sala\/ZZZ999\/display$/);
+      await expect(hostPage.getByRole('heading', { name: 'Parear este telão' })).toBeVisible();
+
+      // Código com formato inválido continua redirecionando — checagem de
+      // formato acontece antes de qualquer consulta ao banco e não muda
+      // com esta feature.
+      await hostPage.goto('/sala/ab/display');
+      await expect(hostPage).toHaveURL(/\/sala\/AB$/);
     } finally {
       await Promise.allSettled([
         hostContext.close(),

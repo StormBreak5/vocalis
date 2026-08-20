@@ -21,6 +21,8 @@ export type ErrorCode =
   | 'RPC_RESULT_CARDINALITY'
   | 'RPC_RESULT_INVALID'
   | 'RESPONSE_UNCERTAIN'
+  | 'PAIRING_CODE_INVALID'
+  | 'PAIRING_NOT_FOUND_OR_FORBIDDEN'
   | 'UNKNOWN';
 
 export const USER_MESSAGES: Record<ErrorCode, string> = {
@@ -46,6 +48,8 @@ export const USER_MESSAGES: Record<ErrorCode, string> = {
   RPC_RESULT_CARDINALITY: 'O servidor retornou uma resposta inesperada.',
   RPC_RESULT_INVALID: 'O servidor retornou dados inválidos.',
   RESPONSE_UNCERTAIN: 'Não foi possível confirmar o resultado. Reconecte para verificar antes de tentar novamente.',
+  PAIRING_CODE_INVALID: 'Código de pareamento inválido ou expirado.',
+  PAIRING_NOT_FOUND_OR_FORBIDDEN: 'Pareamento não encontrado ou indisponível.',
   UNKNOWN: 'Ocorreu um erro inesperado.',
 };
 

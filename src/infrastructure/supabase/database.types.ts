@@ -7,33 +7,40 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
+      display_pairings: {
+        Row: {
+          auth_user_id: string
+          id: string
+          paired_at: string
+          revoked_at: string | null
+          session_id: string
+        }
+        Insert: {
+          auth_user_id: string
+          id?: string
+          paired_at?: string
+          revoked_at?: string | null
+          session_id: string
+        }
+        Update: {
+          auth_user_id?: string
+          id?: string
+          paired_at?: string
+          revoked_at?: string | null
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "display_pairings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       participants: {
         Row: {
           auth_user_id: string | null
@@ -207,6 +214,22 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      generate_display_pairing_code: {
+        Args: { p_session_id: string }
+        Returns: {
+          code: string
+          expires_at: string
+        }[]
+      }
+      get_display_session_details: {
+        Args: { p_session_id: string }
+        Returns: {
+          closed_at: string
+          code: string
+          id: string
+          status: string
+        }[]
+      }
       get_host_session_details: {
         Args: { p_session_id: string }
         Returns: {
@@ -222,6 +245,42 @@ export type Database = {
       join_session: {
         Args: { p_code: string; p_display_name: string }
         Returns: Json
+      }
+      list_active_queue: {
+        Args: { p_session_id: string }
+        Returns: {
+          artist: string
+          created_at: string
+          id: string
+          participant_id: string
+          participant_name: string
+          position: number
+          session_id: string
+          song_title: string
+          status: string
+          updated_at: string
+        }[]
+      }
+      list_paired_displays: {
+        Args: { p_session_id: string }
+        Returns: {
+          id: string
+          paired_at: string
+        }[]
+      }
+      redeem_display_pairing_code: {
+        Args: { p_pairing_code: string; p_room_code: string }
+        Returns: {
+          paired: boolean
+          session_id: string
+        }[]
+      }
+      revoke_display_pairing: {
+        Args: { p_display_pairing_id: string }
+        Returns: {
+          id: string
+          revoked: boolean
+        }[]
       }
       update_queue_status: {
         Args: { p_new_status: string; p_queue_id: string }
@@ -371,9 +430,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },

@@ -64,6 +64,56 @@ export function closedDialogHeading(page: Page) {
   return page.getByRole('heading', { name: 'Sala encerrada' });
 }
 
+export async function pairDisplay(hostPage: Page, code: string, tvPage: Page): Promise<void> {
+  const participantsTab = hostPage.getByRole('tab', { name: /Participantes/i });
+  if (await participantsTab.isVisible().catch(() => false)) {
+    await participantsTab.click();
+  }
+
+  const generateButton = hostPage.getByRole('button', { name: 'Parear telão' }).filter({ visible: true });
+  const generatedCodeCard = hostPage.getByTestId('dj-pairing-generated-code').filter({ visible: true });
+  const codeValue = generatedCodeCard.locator('span').nth(1);
+  // A second call to this helper (pairing a second TV) finds the card
+  // already visible with the previous code — toBeVisible() alone would
+  // resolve instantly and read stale text before React re-renders with the
+  // new one. Compare against the pre-click value and let Playwright's
+  // retrying `not.toHaveText` wait for the actual change instead.
+  const previousCode = (await generatedCodeCard.count()) > 0
+    ? await codeValue.textContent().catch(() => null)
+    : null;
+
+  await generateButton.click();
+
+  await expect(generatedCodeCard).toBeVisible();
+  if (previousCode) {
+    await expect(codeValue).not.toHaveText(previousCode);
+  }
+  const pairingCode = (await codeValue.textContent())?.trim() ?? '';
+
+  // A rota do telão é pensada exclusivamente para TV/projetor — o CSS de
+  // `.flow` (display.module.css) assume um viewport largo e colapsa para
+  // largura ~0 no viewport estreito padrão do projeto Mobile Chrome assim
+  // que há conteúdo de fila para exibir (o estado vazio não usa `.flow`,
+  // por isso isso só aparece quando a fila deixa de estar vazia). Mesmo
+  // tamanho que os demais testes de telão já usam (público/Host).
+  await tvPage.setViewportSize({ width: 1_920, height: 1_080 });
+  await tvPage.goto(`/sala/${code}/display`);
+  await expect(tvPage.locator('[data-display-pairing-screen]')).toBeVisible();
+  // pressSequentially, não fill: investigação com instrumentação (8 corridas
+  // limpas vs. ~57% de falha com fill) confirmou que fill() no WebKit às
+  // vezes seta o valor nativo do input sem disparar o onChange controlado do
+  // React de forma confiável — o DOM mostra os 6 caracteres corretos, mas o
+  // estado `code` do componente nunca atualiza, e o botão de submit fica
+  // preso em disabled. pressSequentially dispara teclas de verdade
+  // (keydown/input por caractere), o mesmo caminho que um usuário real digita
+  // e que o React sempre escuta corretamente — mesmo padrão já usado em
+  // `joinSession` acima.
+  const pairingInput = tvPage.getByLabel(/código de pareamento/i);
+  await pairingInput.pressSequentially(pairingCode);
+  await tvPage.getByRole('button', { name: 'Parear telão' }).click();
+  await expect(tvPage.locator('[data-display-pairing-screen]')).toHaveCount(0, { timeout: 15_000 });
+}
+
 export async function createContextSupabaseClient(context: BrowserContext) {
   const { combinedEnv } = loadEnvConfig(process.cwd());
   const supabaseUrl = combinedEnv.NEXT_PUBLIC_SUPABASE_URL;

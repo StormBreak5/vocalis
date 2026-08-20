@@ -11,4 +11,10 @@ describe('mapSessionError', () => {
   it('sanitiza erros desconhecidos', () => {
     expect(mapSessionError(new Error('password=secret'))).toEqual({ ok:false, code:'UNKNOWN', userMessage:'Ocorreu um erro inesperado.' });
   });
+  it('mapeia código de pareamento inválido, expirado, consumido ou sala inexistente de forma indistinguível', () => {
+    expect(mapSessionError(new Error('PAIRING_CODE_INVALID')).code).toBe('PAIRING_CODE_INVALID');
+  });
+  it('mapeia pareamento inexistente/não autorizado de forma indistinguível', () => {
+    expect(mapSessionError({ message: 'PAIRING_NOT_FOUND_OR_FORBIDDEN' }).code).toBe('PAIRING_NOT_FOUND_OR_FORBIDDEN');
+  });
 });

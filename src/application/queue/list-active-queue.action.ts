@@ -1,46 +1,50 @@
 'use server';
 
+import { z } from 'zod';
 import { createSupabaseServerClient } from '../../infrastructure/supabase/server';
-import { AppError, AppSuccess } from '../../domain/errors.types';
-import { ActiveQueueEntry, QueueEntry } from '../../domain/queue.types';
+import { AppError, AppSuccess, USER_MESSAGES } from '../../domain/errors.types';
+import { ActiveQueueEntry, activeQueueRpcRowSchema } from '../../domain/queue.types';
+import { mapSessionError } from '../session/session-error.mapper';
+
+const rowsSchema = z.array(activeQueueRpcRowSchema);
 
 export async function listActiveQueueAction(
   sessionId: string
 ): Promise<AppSuccess<{ queue: ActiveQueueEntry[] }> | AppError> {
   try {
     const supabase = await createSupabaseServerClient();
-    
+
     // Check if the user is authenticated (they must be to read the queue via RLS)
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       return { ok: false, code: 'UNAUTHORIZED', userMessage: 'Você não tem permissão para visualizar a fila.' };
     }
 
-    // Fetch queue entries with status pending, preparing, singing
-    // We also join with participants to get the participantName
-    const { data, error } = await supabase
-      .from('queue')
-      .select('*, participants(display_name)')
-      .eq('session_id', sessionId)
-      .in('status', ['pending', 'preparing', 'singing'])
-      .order('position', { ascending: true });
+    // list_active_queue is a SECURITY DEFINER RPC: it resolves each entry's
+    // participant display_name internally so callers with queue access but
+    // no participants access (a paired display, see specs/004-display-pairing)
+    // still get the real name, instead of a PostgREST-embedded join silently
+    // dropping it. See specs/004-display-pairing/research.md R15.
+    const { data, error } = await supabase.rpc('list_active_queue', { p_session_id: sessionId });
 
-    if (error) {
-      console.error('listActiveQueueAction Supabase error:', error);
-      return { ok: false, code: 'UNKNOWN', userMessage: 'Erro ao carregar a fila atual.' };
+    if (error) return mapSessionError(error);
+
+    const parsed = rowsSchema.safeParse(data);
+    if (!parsed.success) {
+      return { ok: false, code: 'RPC_RESULT_INVALID', userMessage: USER_MESSAGES.RPC_RESULT_INVALID };
     }
 
-    const queue: ActiveQueueEntry[] = (data || []).map((row) => ({
+    const queue: ActiveQueueEntry[] = parsed.data.map((row) => ({
       id: row.id,
       sessionId: row.session_id,
       participantId: row.participant_id,
       songTitle: row.song_title,
       artist: row.artist,
-      status: row.status as QueueEntry['status'],
+      status: row.status,
       position: row.position,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
-      participantName: (row.participants as unknown as { display_name: string })?.display_name || 'Cantor',
+      participantName: row.participant_name,
     }));
 
     return { ok: true, queue };
