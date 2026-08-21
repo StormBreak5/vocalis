@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRef } from 'react';
 import { Dialog } from '@base-ui/react/dialog';
-import { Copy, Ellipsis, ExternalLink, MicVocal, Radio, X } from 'lucide-react';
+import { Copy, Ellipsis, ExternalLink, History, MicVocal, Radio, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { CloseSessionButton } from '@/src/components/session/CloseSessionButton';
 import { SessionStatusToggle } from '@/src/components/session/SessionStatusToggle';
@@ -51,6 +51,15 @@ function DisplayLink({ roomCode }: { roomCode: string }) {
   );
 }
 
+function HistoryLink() {
+  return (
+    <Link className={styles.displayLink} href="/historico">
+      <History size={17} aria-hidden="true" />
+      Ver histórico
+    </Link>
+  );
+}
+
 function SessionControls({
   disabled,
   roomCode,
@@ -63,6 +72,7 @@ function SessionControls({
   return (
     <>
       <DisplayLink roomCode={roomCode} />
+      <HistoryLink />
       <SessionStatusToggle disabled={disabled} appearance="neon" />
       <CloseSessionButton
         disabled={disabled}
@@ -95,6 +105,7 @@ function MobileSessionControls({ disabled, roomCode }: { disabled: boolean; room
           </div>
           <div className={styles.sheetActions}>
             <DisplayLink roomCode={roomCode} />
+            <HistoryLink />
             <SessionStatusToggle disabled={disabled} appearance="neon" />
             <div className={styles.destructiveGroup}>
               <CloseSessionButton

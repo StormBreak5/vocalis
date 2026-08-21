@@ -124,6 +124,7 @@
 .sessionStatus[data-state="paused"] { color: var(--neon-amber); border-color: oklch(0.84 0.16 85 / 34%); background: oklch(0.84 0.16 85 / 8%); }
 .sessionStatus[data-state="offline"],
 .sessionStatus[data-state="reconnecting"] { color: var(--neon-red); border-color: oklch(0.71 0.16 25 / 34%); }
+.sessionStatus[data-state="closed"] { color: var(--neon-text-muted); border-color: var(--neon-line); background: var(--neon-surface-soft); }
 .statusDot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 9px currentColor; }
 
 .desktopControls { gap: 9px; }
@@ -295,6 +296,23 @@
 .participantRow:not([data-online]) { opacity: .68; }
 .joinedTime { color: var(--neon-text-secondary); font-family: "Roboto Mono Variable", "Roboto Mono", monospace; font-size: 10px; }
 .participantEmpty { padding: 30px 20px; color: var(--neon-text-secondary); text-align: center; }
+
+.historyRow {
+  min-height: 76px;
+  padding: 12px 7px;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border-top: 1px solid var(--neon-line);
+}
+.historyRowHead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.historyRowCode { overflow: hidden; font-family: "Roboto Mono Variable", "Roboto Mono", monospace; font-size: 14px; font-weight: 800; letter-spacing: 0.09em; text-overflow: ellipsis; white-space: nowrap; }
+.historyRowDates { margin-top: 4px; color: var(--neon-text-muted); font-size: 11px; }
+.historyRowStats { display: flex; gap: 16px; }
+.historyStat { display: flex; flex-direction: column; align-items: flex-end; }
+.historyStatValue { font-family: "Roboto Mono Variable", "Roboto Mono", monospace; font-size: 17px; font-weight: 820; line-height: 1; }
+.historyStatLabel { margin-top: 3px; color: var(--neon-text-muted); font-size: 10px; }
 
 .pairingGenerateButton {
   width: calc(100% - 40px);

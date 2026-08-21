@@ -261,6 +261,18 @@ export type Database = {
           updated_at: string
         }[]
       }
+      list_host_sessions: {
+        Args: never
+        Returns: {
+          closed_at: string | null
+          code: string
+          created_at: string
+          id: string
+          participant_count: number
+          song_count: number
+          status: string
+        }[]
+      }
       list_paired_displays: {
         Args: { p_session_id: string }
         Returns: {
