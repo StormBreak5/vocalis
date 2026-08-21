@@ -9,6 +9,7 @@ import { useTrackParticipantPresence } from '@/src/hooks/useSessionPresence';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { cancelQueueEntryAction } from '@/src/application/queue/cancel-queue-entry.action';
 import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import type { RoomEntryQrResult } from '@/src/infrastructure/qr/room-entry-qr';
 
 vi.mock('@/src/hooks/useActiveQueue', () => ({ useActiveQueue: vi.fn() }));
 vi.mock('@/src/hooks/useOnlineStatus', () => ({ useOnlineStatus: vi.fn() }));
@@ -36,8 +37,12 @@ let queueOffline: boolean;
 let lifecycleStatus: 'active' | 'paused' | 'closed';
 let lifecyclePhase: 'connected' | 'reconnecting' | 'offline';
 
+const qr: RoomEntryQrResult = { status: 'origin-not-configured' };
+
 function renderExperience() {
-  return render(<ParticipantQueueExperience sessionId="session-1" roomCode="KARA89" participant={participant} />);
+  return render(
+    <ParticipantQueueExperience sessionId="session-1" roomCode="KARA89" participant={participant} qr={qr} />,
+  );
 }
 
 describe('ParticipantQueueExperience', () => {

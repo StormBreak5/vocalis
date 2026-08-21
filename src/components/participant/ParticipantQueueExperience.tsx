@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import type { Participant } from '@/src/domain/participant.types';
+import type { RoomEntryQrResult } from '@/src/infrastructure/qr/room-entry-qr';
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
 import { useTrackParticipantPresence } from '@/src/hooks/useSessionPresence';
@@ -22,10 +23,12 @@ export function ParticipantQueueExperience({
   sessionId,
   roomCode,
   participant,
+  qr,
 }: {
   sessionId: string;
   roomCode: string;
   participant: Participant;
+  qr: RoomEntryQrResult;
 }) {
   const lifecycle = useSessionLifecycleContext();
   useTrackParticipantPresence(sessionId, participant.id);
@@ -64,6 +67,7 @@ export function ParticipantQueueExperience({
           displayName={participant.displayName}
           disambiguationIndex={participant.disambiguationIndex}
           connectionState={connectionState}
+          qr={qr}
         />
         {contextState && <SessionContextStrip state={contextState} />}
         <NowSingingHero entry={singingEntry} />

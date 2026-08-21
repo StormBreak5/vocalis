@@ -7,6 +7,7 @@ import { Mic2 } from 'lucide-react';
 import { SessionLifecycleProvider } from '@/src/components/session/SessionLifecycleProvider';
 import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
 import { ParticipantQueueExperience } from '@/src/components/participant/ParticipantQueueExperience';
+import { generateRoomEntryQr } from '@/src/infrastructure/qr/room-entry-qr.server';
 
 export default async function GuestRoomPage({
   params,
@@ -69,7 +70,12 @@ export default async function GuestRoomPage({
       initialSnapshot={{ id: session.id, code: session.code, status: session.status, closedAt: session.closedAt }}
     >
       {participant && !isClosed ? (
-        <ParticipantQueueExperience sessionId={session.id} roomCode={uppercaseCode} participant={participant} />
+        <ParticipantQueueExperience
+          sessionId={session.id}
+          roomCode={uppercaseCode}
+          participant={participant}
+          qr={generateRoomEntryQr(uppercaseCode)}
+        />
       ) : (
         <main className="flex-1 flex flex-col p-6 w-full max-w-lg mx-auto">
           <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">

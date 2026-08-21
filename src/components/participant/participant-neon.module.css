@@ -59,6 +59,23 @@
 .brand { font-size: 18px; font-weight: 820; letter-spacing: -0.02em; }
 .roomLine { margin-top: 5px; gap: 7px; color: var(--neon-text-secondary); font-size: 12px; }
 .roomCode { color: var(--neon-text); font-family: "Roboto Mono Variable", monospace; font-weight: 700; letter-spacing: 0.12em; }
+.roomLineTrigger {
+  position: relative;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--neon-text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.roomLineTrigger::before { content: ""; position: absolute; inset: -16px -10px; }
+.roomLineTrigger svg { color: var(--neon-cyan); }
+.roomLineTrigger:active { color: var(--neon-text); }
 .identity { display: flex; flex-direction: column; align-items: flex-end; gap: 7px; min-width: 0; }
 .person { max-width: 148px; overflow: hidden; color: var(--neon-text-secondary); font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -173,6 +190,13 @@
 .closeButton { min-width: 48px; min-height: 48px; display: grid; place-items: center; flex: 0 0 auto; border: 1px solid var(--neon-line); border-radius: 15px; background: var(--neon-surface-soft); color: var(--neon-text-secondary); }
 .sheetForm { background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; padding: 0 !important; }
 .sheetForm h2 { display: none; }
+
+.qrSheet { display: grid; justify-items: center; text-align: center; }
+.qrSheet .sheetHeader { width: 100%; }
+.qrFrame { width: min(72%, 260px); aspect-ratio: 1; margin-top: 8px; padding: 6%; display: grid; place-items: center; border-radius: 20px; background: white; box-shadow: 0 12px 34px oklch(0.08 0.02 260 / 30%); }
+.qrFrame img { width: 100%; height: 100%; display: block; }
+.qrRoomCode { margin-top: 18px; color: var(--neon-text); font-family: "Roboto Mono Variable", monospace; font-size: 28px; font-weight: 800; letter-spacing: 0.14em; }
+.qrUrl { max-width: 32ch; margin: 6px 0 0; color: var(--neon-cyan); font-size: 12px; overflow-wrap: anywhere; }
 
 .shell :is(button, input):focus-visible,
 .sheet :is(button, input):focus-visible {
