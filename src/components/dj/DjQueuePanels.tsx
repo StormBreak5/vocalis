@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -275,17 +275,24 @@ export function DjCompactQueueList({
   const [localOrder, setLocalOrder] = useState<string[] | null>(null);
   const serverIds = entries.map((entry) => entry.id).join(',');
 
-  useEffect(() => {
-    setLocalOrder((current) => {
-      if (!current) return null;
+  // "Adjusting state when a prop changes", feito durante a renderização em
+  // vez de useEffect (padrão recomendado pelo React — evita o cascading
+  // render de um setState síncrono dentro de efeito). O setState aqui é
+  // guardado pela comparação serverIds !== syncedServerIds, então roda no
+  // máximo uma vez por mudança real, nunca em loop.
+  const [syncedServerIds, setSyncedServerIds] = useState(serverIds);
+  if (serverIds !== syncedServerIds) {
+    setSyncedServerIds(serverIds);
+    if (localOrder) {
       const ids = serverIds.split(',').filter(Boolean);
       // O conjunto de ids do servidor mudou (entrada cancelada, chamada, ou
       // nova chegou) enquanto o preview local estava ativo — ele não é mais
       // válido, volta a refletir o servidor.
-      if (current.length !== ids.length || !current.every((id) => ids.includes(id))) return null;
-      return current;
-    });
-  }, [serverIds]);
+      if (localOrder.length !== ids.length || !localOrder.every((id) => ids.includes(id))) {
+        setLocalOrder(null);
+      }
+    }
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
