@@ -55,6 +55,11 @@ export const updateQueueStatusRpcRowSchema = z.strictObject({
 });
 export type UpdateQueueStatusResult = { id:string; status:QueueStatus; updatedAt:string; changed:boolean };
 
+export const reorderQueueRpcRowSchema = z.strictObject({
+  id:z.string().uuid(), position:z.number().int(),
+});
+export type ReorderQueueResult = { id:string; position:number }[];
+
 // Rótulos de apresentação para quando o cantor ainda não escolheu o que vai
 // cantar. Usados por todas as superfícies (participante, Host, telão) para
 // que "ainda não escolhido" tenha um único texto em vez de cada componente

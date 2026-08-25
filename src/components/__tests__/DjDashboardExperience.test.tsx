@@ -11,6 +11,7 @@ import { useSessionPresence } from '@/src/hooks/useSessionPresence';
 import { useDisplayPairings } from '@/src/hooks/useDisplayPairings';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { updateQueueStatusAction } from '@/src/application/queue/update-queue-status.action';
+import { reorderQueueAction } from '@/src/application/queue/reorder-queue.action';
 
 vi.mock('@/src/hooks/useActiveQueue', () => ({ useActiveQueue: vi.fn() }));
 vi.mock('@/src/hooks/useOnlineStatus', () => ({ useOnlineStatus: vi.fn() }));
@@ -19,6 +20,7 @@ vi.mock('@/src/hooks/useSessionPresence', () => ({ useSessionPresence: vi.fn() }
 vi.mock('@/src/hooks/useDisplayPairings', () => ({ useDisplayPairings: vi.fn() }));
 vi.mock('@/src/components/session/SessionLifecycleProvider', () => ({ useSessionLifecycleContext: vi.fn() }));
 vi.mock('@/src/application/queue/update-queue-status.action', () => ({ updateQueueStatusAction: vi.fn() }));
+vi.mock('@/src/application/queue/reorder-queue.action', () => ({ reorderQueueAction: vi.fn() }));
 vi.mock('@/src/application/session/update-session-status.action', () => ({ updateSessionStatusAction: vi.fn() }));
 vi.mock('@/src/application/session/get-session-status', () => ({ getSessionStatus: vi.fn() }));
 vi.mock('@/src/application/session/close-session.action', () => ({ closeSessionAction: vi.fn() }));
@@ -102,6 +104,7 @@ describe('DjDashboardExperience', () => {
       ok: true,
       result: { id: 'queue-1', status: 'preparing', updatedAt: '2026-08-10T21:04:00Z', changed: true },
     });
+    vi.mocked(reorderQueueAction).mockResolvedValue({ ok: true, result: [] });
   });
 
   it('separa singing, preparing e waiting com somente as ações válidas', () => {
@@ -230,5 +233,47 @@ describe('DjDashboardExperience', () => {
     await waitFor(() => expect(resync).toHaveBeenCalled());
     expect(screen.getAllByText(/The Long and Winding Road/)[0].className).toBeTruthy();
     expect(document.activeElement).not.toBe(document.body);
+  });
+
+  describe('reordenar a fila aguardando', () => {
+    it('oferece a alça de arrastar quando há 2+ entradas aguardando e mutações permitidas', () => {
+      queue = [
+        entry({ id: 'pending-1', participantName: 'Marina', songTitle: 'Evidências', position: 1 }),
+        entry({ id: 'pending-2', participantName: 'Diego', songTitle: 'Tempo Perdido', position: 2 }),
+      ];
+      renderDashboard();
+      const desktopQueue = screen.getAllByTestId('dj-waiting-queue')[0];
+      const handle = within(desktopQueue).getByRole('button', { name: 'Reordenar Evidências na fila' });
+      expect((handle as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it('desabilita a alça de arrastar quando só há 1 entrada aguardando', () => {
+      queue = [entry({ id: 'pending-1', songTitle: 'Evidências' })];
+      renderDashboard();
+      const desktopQueue = screen.getAllByTestId('dj-waiting-queue')[0];
+      const handle = within(desktopQueue).getByRole('button', { name: 'Reordenar Evidências na fila' });
+      expect((handle as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    it('desabilita a alça de arrastar quando offline', () => {
+      online = false;
+      queue = [
+        entry({ id: 'pending-1', songTitle: 'Evidências', position: 1 }),
+        entry({ id: 'pending-2', songTitle: 'Tempo Perdido', position: 2 }),
+      ];
+      renderDashboard();
+      const desktopQueue = screen.getAllByTestId('dj-waiting-queue')[0];
+      const handle = within(desktopQueue).getByRole('button', { name: 'Reordenar Evidências na fila' });
+      expect((handle as HTMLButtonElement).disabled).toBe(true);
+    });
+
+    // Uma simulação de arraste de ponta a ponta (via teclado ou pointer)
+    // não é confiável em jsdom: o dnd-kit decide qual item está "por baixo"
+    // (closestCenter) a partir de getBoundingClientRect(), e jsdom não faz
+    // layout real — todo elemento mede 0x0 na mesma posição, então a
+    // detecção de colisão não consegue diferenciar alvos. A verificação do
+    // gesto de arraste em si (produção do array reordenado, chamada de
+    // reorderQueueAction, resync em sucesso, reversão do estado otimista em
+    // falha) é feita manualmente no browser — ver notas de verificação.
   });
 });

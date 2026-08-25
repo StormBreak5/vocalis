@@ -312,6 +312,13 @@ export type Database = {
           session_id: string
         }[]
       }
+      reorder_queue: {
+        Args: { p_queue_ids: string[]; p_session_id: string }
+        Returns: {
+          id: string
+          position: number
+        }[]
+      }
       revoke_display_pairing: {
         Args: { p_display_pairing_id: string }
         Returns: {

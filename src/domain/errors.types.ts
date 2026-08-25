@@ -18,6 +18,7 @@ export type ErrorCode =
   | 'UNAUTHORIZED'
   | 'QUEUE_ENTRY_NOT_FOUND'
   | 'QUEUE_ENTRY_NOT_FOUND_OR_FORBIDDEN'
+  | 'INVALID_QUEUE_ORDER'
   | 'RPC_RESULT_CARDINALITY'
   | 'RPC_RESULT_INVALID'
   | 'RESPONSE_UNCERTAIN'
@@ -45,6 +46,7 @@ export const USER_MESSAGES: Record<ErrorCode, string> = {
   UNAUTHORIZED: 'Você não tem permissão para realizar esta ação.',
   QUEUE_ENTRY_NOT_FOUND: 'Música não encontrada.',
   QUEUE_ENTRY_NOT_FOUND_OR_FORBIDDEN: 'Música não encontrada ou indisponível.',
+  INVALID_QUEUE_ORDER: 'A ordem enviada não corresponde à fila atual. Atualize e tente novamente.',
   RPC_RESULT_CARDINALITY: 'O servidor retornou uma resposta inesperada.',
   RPC_RESULT_INVALID: 'O servidor retornou dados inválidos.',
   RESPONSE_UNCERTAIN: 'Não foi possível confirmar o resultado. Reconecte para verificar antes de tentar novamente.',

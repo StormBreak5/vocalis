@@ -8,6 +8,7 @@ import type { Participant } from '@/src/domain/participant.types';
 import type { ActiveQueueEntry } from '@/src/domain/queue.types';
 import type { PairedDisplaySummary } from '@/src/domain/display-pairing.types';
 import { updateQueueStatusAction } from '@/src/application/queue/update-queue-status.action';
+import { reorderQueueAction } from '@/src/application/queue/reorder-queue.action';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
 import { useActiveQueue } from '@/src/hooks/useActiveQueue';
 import { useOnlineStatus } from '@/src/hooks/useOnlineStatus';
@@ -31,6 +32,7 @@ import type {
   DjQueueActionHandler,
   DjQueueActionKind,
   DjQueueActionState,
+  DjQueueReorderHandler,
 } from './dj.types';
 import styles from './dj-dashboard.module.css';
 
@@ -61,6 +63,8 @@ function QueueOperationStack({
   pendingAction,
   mutationsAllowed,
   dockTargetId,
+  onReorder,
+  isReordering,
 }: {
   queue: ActiveQueueEntry[];
   isLoading: boolean;
@@ -68,6 +72,8 @@ function QueueOperationStack({
   pendingAction: DjQueueActionState | null;
   mutationsAllowed: boolean;
   dockTargetId?: string;
+  onReorder: DjQueueReorderHandler;
+  isReordering: boolean;
 }) {
   if (isLoading) return <OperationLoading />;
   const singing = queue.find((entry) => entry.status === 'singing');
@@ -97,6 +103,8 @@ function QueueOperationStack({
         pendingAction={pendingAction}
         mutationsAllowed={mutationsAllowed}
         dockTargetId={dockTargetId}
+        onReorder={onReorder}
+        isReordering={isReordering}
       />
     </div>
   );
@@ -114,8 +122,14 @@ export function DjDashboardExperience({
   initialPairedDisplays: PairedDisplaySummary[];
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  // Trava única para QUALQUER mutação de fila (mudança de status OU
+  // reorder) — evita, por exemplo, o DJ apertar "Chamar" e arrastar quase
+  // ao mesmo tempo, o que faria reorder_queue recusar com
+  // INVALID_QUEUE_ORDER (o snapshot do Host ficou desatualizado no meio do
+  // gesto) em vez de simplesmente esperar a primeira operação terminar.
   const actionInFlightRef = useRef(false);
   const [pendingAction, setPendingAction] = useState<DjQueueActionState | null>(null);
+  const [isReordering, setIsReordering] = useState(false);
   const lifecycle = useSessionLifecycleContext();
   const { queue, isLoading, isOffline: queueIsOffline, resync } = useActiveQueue(sessionId);
   const participants = useSessionParticipants(sessionId, initialParticipants);
@@ -172,6 +186,27 @@ export function DjDashboardExperience({
     }
   };
 
+  const handleReorder: DjQueueReorderHandler = async (orderedIds) => {
+    if (!mutationsAllowed || actionInFlightRef.current) return false;
+    actionInFlightRef.current = true;
+    setIsReordering(true);
+    try {
+      const result = await reorderQueueAction(sessionId, orderedIds);
+      if (!result.ok) {
+        toast.error('Erro ao reordenar', { description: result.userMessage });
+        return false;
+      }
+      await resync();
+      return true;
+    } catch {
+      toast.error('Erro inesperado', { description: 'Tente novamente.' });
+      return false;
+    } finally {
+      actionInFlightRef.current = false;
+      setIsReordering(false);
+    }
+  };
+
   return (
     <div ref={rootRef} className={styles.dashboard} data-dj-dashboard data-connection-state={connectionState}>
       <DjSessionHeader roomCode={roomCode} connectionState={connectionState} controlsDisabled={controlsDisabled} />
@@ -187,6 +222,8 @@ export function DjDashboardExperience({
             onAction={handleQueueAction}
             pendingAction={pendingAction}
             mutationsAllowed={mutationsAllowed}
+            onReorder={handleReorder}
+            isReordering={isReordering}
           />
         </main>
         <aside className={styles.sidebar}>
@@ -211,6 +248,8 @@ export function DjDashboardExperience({
               onAction={handleQueueAction}
               pendingAction={pendingAction}
               mutationsAllowed={mutationsAllowed}
+              onReorder={handleReorder}
+              isReordering={isReordering}
               dockTargetId={dockEntry?.id}
             />
           </Tabs.Panel>

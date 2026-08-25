@@ -1,8 +1,28 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import {
   AudioLines,
   CheckCircle2,
+  GripVertical,
   Headphones,
   ListMusic,
   Loader2,
@@ -17,6 +37,7 @@ import type {
   DjQueueActionHandler,
   DjQueueActionKind,
   DjQueueActionState,
+  DjQueueReorderHandler,
 } from './dj.types';
 import styles from './dj-dashboard.module.css';
 
@@ -174,19 +195,125 @@ export function DjNextQueueCard({
   );
 }
 
+function DjQueueRow({
+  entry,
+  onAction,
+  pendingAction,
+  mutationsAllowed,
+  dockTargetId,
+  dragDisabled,
+}: {
+  entry: ActiveQueueEntry;
+  onAction: DjQueueActionHandler;
+  pendingAction: DjQueueActionState | null;
+  mutationsAllowed: boolean;
+  dockTargetId?: string;
+  dragDisabled: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: entry.id,
+    disabled: dragDisabled,
+  });
+  const style = { transform: CSS.Transform.toString(transform), transition };
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={styles.queueRow}
+      data-dj-entry-id={entry.id}
+      data-dock-target={entry.id === dockTargetId || undefined}
+    >
+      <button
+        type="button"
+        className={styles.dragHandle}
+        disabled={dragDisabled}
+        aria-label={`Reordenar ${songTitleLabel(entry)} na fila`}
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical size={18} aria-hidden="true" />
+      </button>
+      <span className={styles.queueNumber}>{String(entry.position).padStart(2, '0')}</span>
+      <div className={styles.itemCopy}>
+        <div className={styles.itemTitle}>{songTitleLabel(entry)}</div>
+        <div className={styles.itemMeta}>{artistLabel(entry)} · {entry.participantName}</div>
+      </div>
+      <DjQueueActions
+        entry={entry}
+        onAction={onAction}
+        pendingAction={pendingAction}
+        mutationsAllowed={mutationsAllowed}
+        primaryKind="secondary"
+      />
+    </li>
+  );
+}
+
 export function DjCompactQueueList({
   entries,
   onAction,
   pendingAction,
   mutationsAllowed,
   dockTargetId,
+  onReorder,
+  isReordering,
 }: {
   entries: ActiveQueueEntry[];
   onAction: DjQueueActionHandler;
   pendingAction: DjQueueActionState | null;
   mutationsAllowed: boolean;
   dockTargetId?: string;
+  onReorder: DjQueueReorderHandler;
+  isReordering: boolean;
 }) {
+  // Reordenar via arraste precisa de feedback visual instantâneo — antes da
+  // RPC confirmar — mas useActiveQueue não expõe setter para mutar `queue`
+  // localmente. Este estado é só o "preview" otimista da ordem, dono deste
+  // componente; a verdade sempre volta a ser `entries` (via Realtime/resync)
+  // assim que a operação termina, com sucesso ou não.
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
+  const serverIds = entries.map((entry) => entry.id).join(',');
+
+  useEffect(() => {
+    setLocalOrder((current) => {
+      if (!current) return null;
+      const ids = serverIds.split(',').filter(Boolean);
+      // O conjunto de ids do servidor mudou (entrada cancelada, chamada, ou
+      // nova chegou) enquanto o preview local estava ativo — ele não é mais
+      // válido, volta a refletir o servidor.
+      if (current.length !== ids.length || !current.every((id) => ids.includes(id))) return null;
+      return current;
+    });
+  }, [serverIds]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const orderedEntries = localOrder
+    ? localOrder
+        .map((id) => entries.find((entry) => entry.id === id))
+        .filter((entry): entry is ActiveQueueEntry => Boolean(entry))
+    : entries;
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const currentIds = localOrder ?? entries.map((entry) => entry.id);
+    const oldIndex = currentIds.indexOf(String(active.id));
+    const newIndex = currentIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    const nextOrder = arrayMove(currentIds, oldIndex, newIndex);
+    setLocalOrder(nextOrder);
+    const ok = await onReorder(nextOrder);
+    if (!ok) setLocalOrder(null);
+  };
+
+  const dragDisabled = !mutationsAllowed || isReordering || entries.length < 2;
+
   return (
     <section className={styles.card} aria-labelledby="dj-waiting-title" data-testid="dj-waiting-queue">
       <div className={styles.headingRow}>
@@ -196,29 +323,23 @@ export function DjCompactQueueList({
       {entries.length === 0 ? (
         <div className={styles.emptyState}><ListMusic size={27} aria-hidden="true" /><strong>Ninguém aguardando</strong><span>Novos pedidos aparecerão automaticamente.</span></div>
       ) : (
-        <ol className={styles.queueList}>
-          {entries.map((entry) => (
-            <li
-              key={entry.id}
-              className={styles.queueRow}
-              data-dj-entry-id={entry.id}
-              data-dock-target={entry.id === dockTargetId || undefined}
-            >
-              <span className={styles.queueNumber}>{String(entry.position).padStart(2, '0')}</span>
-              <div className={styles.itemCopy}>
-                <div className={styles.itemTitle}>{songTitleLabel(entry)}</div>
-                <div className={styles.itemMeta}>{artistLabel(entry)} · {entry.participantName}</div>
-              </div>
-              <DjQueueActions
-                entry={entry}
-                onAction={onAction}
-                pendingAction={pendingAction}
-                mutationsAllowed={mutationsAllowed}
-                primaryKind="secondary"
-              />
-            </li>
-          ))}
-        </ol>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={(event) => void handleDragEnd(event)}>
+          <SortableContext items={orderedEntries.map((entry) => entry.id)} strategy={verticalListSortingStrategy}>
+            <ol className={styles.queueList}>
+              {orderedEntries.map((entry) => (
+                <DjQueueRow
+                  key={entry.id}
+                  entry={entry}
+                  onAction={onAction}
+                  pendingAction={pendingAction}
+                  mutationsAllowed={mutationsAllowed}
+                  dockTargetId={dockTargetId}
+                  dragDisabled={dragDisabled}
+                />
+              ))}
+            </ol>
+          </SortableContext>
+        </DndContext>
       )}
     </section>
   );

@@ -267,13 +267,17 @@
   min-height: var(--dj-row-height);
   padding: 9px 8px;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr) auto;
+  grid-template-columns: 48px 34px minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   border-top: 1px solid var(--neon-line);
   transition: transform 220ms ease, opacity 220ms ease;
 }
 .queueNumber { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 11px; background: var(--neon-surface-soft); color: var(--neon-text-secondary); font-family: "Roboto Mono Variable", "Roboto Mono", monospace; font-size: 12px; font-weight: 760; }
+.dragHandle { width: 48px; height: 48px; display: grid; place-items: center; flex: 0 0 auto; border: none; border-radius: 12px; background: transparent; color: var(--neon-text-muted); cursor: grab; touch-action: none; }
+.dragHandle:active:not(:disabled) { cursor: grabbing; }
+.dragHandle:disabled { opacity: 0.3; cursor: not-allowed; }
+.dragHandle:focus-visible { outline: 2px solid var(--neon-cyan); outline-offset: -2px; }
 .emptyState { min-height: 164px; padding: 24px; flex-direction: column; justify-content: center; gap: 10px; color: var(--neon-text-secondary); text-align: center; }
 .emptyState svg { color: var(--neon-cyan); }
 .emptyState strong { color: var(--neon-text); }
@@ -451,8 +455,9 @@
   .mobileStack .nextCard .actions { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; }
   .mobileStack .nextCard[data-dock-target="true"] .actions { display: none; }
   .mobileStack .queueList { padding: 0 8px 8px; }
-  .mobileStack .queueRow { grid-template-columns: 32px minmax(0, 1fr); gap: 10px; padding: 9px 7px; }
-  .mobileStack .queueRow .actions { grid-column: 2; justify-content: flex-start; }
+  .mobileStack .queueRow { grid-template-columns: 44px 32px minmax(0, 1fr); gap: 10px; padding: 9px 7px; }
+  .mobileStack .dragHandle { width: 44px; height: 48px; }
+  .mobileStack .queueRow .actions { grid-column: 2 / -1; justify-content: flex-start; }
   .mobileStack .queueRow[data-dock-target="true"] .actions { display: none; }
   .itemTitle { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .queueAction, .skipAction { min-height: 48px; }

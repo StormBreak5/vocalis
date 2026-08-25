@@ -11,3 +11,7 @@ export interface DjQueueActionState {
   entryId: string;
   nextStatus: DjQueueActionKind;
 }
+
+// Retorna boolean (não void): DjCompactQueueList precisa saber se reverte o
+// próprio estado otimista local quando o reorder falha no servidor.
+export type DjQueueReorderHandler = (orderedIds: string[]) => Promise<boolean>;

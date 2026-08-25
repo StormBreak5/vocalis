@@ -17,6 +17,7 @@ export const APPROVED_PGTAP_FILES = Object.freeze([
   '017_session_ownership_integrity.sql',
   '019_list_host_sessions.sql',
   '020_optional_song_and_edit.sql',
+  '021_reorder_pending_queue.sql',
 ]);
 
 export function resolveApprovedPgtapFiles(testsDirectory) {
