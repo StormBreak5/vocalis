@@ -113,7 +113,7 @@
 .benefit { min-height: 64px; padding: 12px 14px; display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 11px; border: 1px solid var(--neon-line); border-radius: var(--neon-radius-sm); background: var(--neon-surface-soft); }
 .benefitIcon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: oklch(0.58 0.23 293 / 13%); color: var(--neon-cyan); }
 .benefit strong { display: block; font-size: 13px; }
-.benefit span { display: block; margin-top: 2px; color: var(--neon-text-secondary); font-size: 12px; line-height: 1.35; }
+.benefit div span { display: block; margin-top: 2px; color: var(--neon-text-secondary); font-size: 12px; line-height: 1.35; }
 
 .actionPanel { grid-area: actions; }
 
