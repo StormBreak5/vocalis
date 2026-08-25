@@ -36,7 +36,7 @@ export const USER_MESSAGES: Record<ErrorCode, string> = {
   SESSION_FULL: 'A sala está cheia.',
   INVALID_CODE_FORMAT: 'Código inválido.',
   INVALID_NAME: 'Nome inválido.',
-  INVALID_SONG: 'Informe uma música e um artista válidos.',
+  INVALID_SONG: 'O título e o artista devem ter no máximo 100 caracteres.',
   PARTICIPANT_NOT_FOUND: 'Participante não encontrado.',
   PARTICIPANT_NOT_FOUND_OR_FORBIDDEN: 'Participante não encontrado ou indisponível.',
   ACTIVE_SONG_EXISTS: 'Você já tem uma música na fila! Aguarde sua vez.',

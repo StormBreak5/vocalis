@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { RequestSongInput, requestSongSchema } from '@/src/domain/queue.types';
+import { RequestSongFormValues, RequestSongInput, requestSongSchema } from '@/src/domain/queue.types';
 import { createQueueEntryAction } from '@/src/application/queue/create-queue-entry.action';
+import { updateQueueSongAction } from '@/src/application/queue/update-queue-song.action';
 import { toast } from 'sonner';
 import { Button } from '@/src/components/ui/button';
 import { Input } from '@/src/components/ui/input';
@@ -18,6 +19,9 @@ interface RequestSongFormProps {
   showHeading?: boolean;
   showContextMessages?: boolean;
   onSuccess?: () => void;
+  mode?: 'create' | 'edit';
+  queueId?: string;
+  initialValues?: RequestSongInput;
 }
 
 export function RequestSongForm({
@@ -27,36 +31,42 @@ export function RequestSongForm({
   showHeading = true,
   showContextMessages = true,
   onSuccess,
+  mode = 'create',
+  queueId,
+  initialValues,
 }: RequestSongFormProps) {
+  const isEdit = mode === 'edit';
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { snapshot, newQueueEntriesAllowed } = useSessionLifecycleContext();
+  const { snapshot, newQueueEntriesAllowed, writesAllowed } = useSessionLifecycleContext();
   const isPaused = snapshot?.status === 'paused';
   const isClosed = snapshot?.status === 'closed';
 
-  const form = useForm<RequestSongInput>({
+  const form = useForm<RequestSongFormValues, unknown, RequestSongInput>({
     resolver: zodResolver(requestSongSchema),
     defaultValues: {
-      songTitle: '',
-      artist: '',
+      songTitle: initialValues?.songTitle ?? '',
+      artist: initialValues?.artist ?? '',
     },
   });
 
   const onSubmit = async (data: RequestSongInput) => {
-    if (hasActiveSong || isOffline || !newQueueEntriesAllowed) return;
+    if (isOffline || (isEdit ? !writesAllowed : hasActiveSong || !newQueueEntriesAllowed)) return;
 
     setIsSubmitting(true);
 
     try {
-      const response = await createQueueEntryAction(sessionId, data);
+      const response = isEdit && queueId
+        ? await updateQueueSongAction(queueId, data)
+        : await createQueueEntryAction(sessionId, data);
 
       if (response.ok) {
-        toast.success('Música adicionada!', {
-          description: 'Seu pedido foi colocado na fila.',
+        toast.success(isEdit ? 'Música atualizada!' : 'Música adicionada!', {
+          description: isEdit ? 'Suas alterações foram salvas.' : 'Seu pedido foi colocado na fila.',
         });
-        form.reset();
+        if (!isEdit) form.reset();
         onSuccess?.();
       } else {
-        toast.error('Não foi possível adicionar', {
+        toast.error(isEdit ? 'Não foi possível salvar' : 'Não foi possível adicionar', {
           description: response.userMessage,
         });
       }
@@ -69,13 +79,13 @@ export function RequestSongForm({
     }
   };
 
-  const isDisabled = hasActiveSong || isOffline || isSubmitting || !newQueueEntriesAllowed;
+  const isDisabled = isOffline || isSubmitting || (isEdit ? !writesAllowed : hasActiveSong || !newQueueEntriesAllowed);
 
   return (
     <div className="bg-card p-6 rounded-xl border shadow-sm">
-      {showHeading && <h2 className="text-xl font-bold mb-4">Pedir Música</h2>}
+      {showHeading && <h2 className="text-xl font-bold mb-4">{isEdit ? 'Editar Música' : 'Pedir Música'}</h2>}
 
-      {showContextMessages && hasActiveSong && (
+      {showContextMessages && !isEdit && hasActiveSong && (
         <div className="mb-4 p-3 bg-primary/10 text-primary rounded-md text-sm border border-primary/20">
           🎤 Você já tem uma música na fila! Aguarde sua vez.
         </div>
@@ -87,7 +97,7 @@ export function RequestSongForm({
         </div>
       )}
 
-      {showContextMessages && isPaused && (
+      {showContextMessages && !isEdit && isPaused && (
         <div className="mb-4 p-3 bg-blue-900/50 text-blue-200 rounded-md text-sm border border-blue-800" role="status">
           A fila está pausada. Aguarde o DJ retomar para pedir uma música.
         </div>
@@ -99,9 +109,15 @@ export function RequestSongForm({
         </div>
       )}
 
+      {!isEdit && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Ainda não sabe o que vai cantar? Pode deixar em branco e escolher depois.
+        </p>
+      )}
+
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div>
-          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Nome da Música</label>
+          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Nome da Música (opcional)</label>
           <Input
             placeholder="Ex: Evidências"
             className="min-h-[48px] mt-2"
@@ -114,7 +130,7 @@ export function RequestSongForm({
         </div>
 
         <div>
-          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Artista / Banda</label>
+          <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Artista / Banda (opcional)</label>
           <Input
             placeholder="Ex: Chitãozinho & Xororó"
             className="min-h-[48px] mt-2"
@@ -134,10 +150,10 @@ export function RequestSongForm({
           {isSubmitting ? (
             <>
               <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              Enviando...
+              {isEdit ? 'Salvando...' : 'Enviando...'}
             </>
           ) : (
-            'Colocar na Fila'
+            isEdit ? 'Salvar Alterações' : 'Colocar na Fila'
           )}
         </Button>
       </form>

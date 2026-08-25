@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       display_pairings: {
@@ -84,35 +109,35 @@ export type Database = {
       }
       queue: {
         Row: {
-          artist: string
+          artist: string | null
           created_at: string
           id: string
           participant_id: string
           position: number
           session_id: string
-          song_title: string
+          song_title: string | null
           status: string
           updated_at: string
         }
         Insert: {
-          artist: string
+          artist?: string | null
           created_at?: string
           id?: string
           participant_id: string
           position: number
           session_id: string
-          song_title: string
+          song_title?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
-          artist?: string
+          artist?: string | null
           created_at?: string
           id?: string
           participant_id?: string
           position?: number
           session_id?: string
-          song_title?: string
+          song_title?: string | null
           status?: string
           updated_at?: string
         }
@@ -264,7 +289,7 @@ export type Database = {
       list_host_sessions: {
         Args: never
         Returns: {
-          closed_at: string | null
+          closed_at: string
           code: string
           created_at: string
           id: string
@@ -292,6 +317,20 @@ export type Database = {
         Returns: {
           id: string
           revoked: boolean
+        }[]
+      }
+      update_queue_song: {
+        Args: { p_artist: string; p_queue_id: string; p_song_title: string }
+        Returns: {
+          artist: string
+          created_at: string
+          id: string
+          participant_id: string
+          position: number
+          session_id: string
+          song_title: string
+          status: string
+          updated_at: string
         }[]
       }
       update_queue_status: {
@@ -442,6 +481,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

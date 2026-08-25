@@ -5,7 +5,8 @@ import { Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { cancelQueueEntryAction } from '@/src/application/queue/cancel-queue-entry.action';
 import { useSessionLifecycleContext } from '@/src/components/session/SessionLifecycleProvider';
-import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import { artistLabel, songTitleLabel, type ActiveQueueEntry } from '@/src/domain/queue.types';
+import { EditSongSheet } from './EditSongSheet';
 import styles from './participant-neon.module.css';
 
 function statusLabel(entry?: ActiveQueueEntry) {
@@ -27,6 +28,7 @@ export function ParticipantQueueCard({
   const { writesAllowed } = useSessionLifecycleContext();
   const [isCancelling, setIsCancelling] = useState(false);
   const canCancel = entry?.status === 'pending' && writesAllowed && !isOffline && !isCancelling;
+  const canEdit = (entry?.status === 'pending' || entry?.status === 'preparing') && writesAllowed && !isOffline;
   const label = statusLabel(entry);
 
   const handleCancel = async () => {
@@ -64,24 +66,29 @@ export function ParticipantQueueCard({
       </div>
       <div>
         <div className={styles.personalTitle}>
-          <strong id="participant-order-title">{entry?.songTitle ?? 'Nenhum pedido ativo'}</strong>
+          <strong id="participant-order-title">{entry ? songTitleLabel(entry) : 'Nenhum pedido ativo'}</strong>
           <span className={styles.youBadge}>VOCÊ</span>
         </div>
         <div className={styles.personalMeta}>
-          {entry && <><span>{entry.artist}</span><span aria-hidden="true">•</span></>}
+          {entry && <><span>{artistLabel(entry)}</span><span aria-hidden="true">•</span></>}
           <span className={entry?.status === 'preparing' ? styles.statusPreparing : styles.statusSuccess}>{label}</span>
         </div>
       </div>
-      {entry?.status === 'pending' && (
-        <button
-          type="button"
-          className={styles.cancelButton}
-          onClick={handleCancel}
-          disabled={!canCancel}
-          aria-label="Cancelar seu pedido"
-        >
-          {isCancelling ? <Loader2 size={19} className={styles.spinner} aria-hidden="true" /> : <X size={20} aria-hidden="true" />}
-        </button>
+      {entry && (entry.status === 'pending' || entry.status === 'preparing') && (
+        <div className={styles.personalActions}>
+          {canEdit && <EditSongSheet entry={entry} disabled={!canEdit} />}
+          {entry.status === 'pending' && (
+            <button
+              type="button"
+              className={styles.cancelButton}
+              onClick={handleCancel}
+              disabled={!canCancel}
+              aria-label="Cancelar seu pedido"
+            >
+              {isCancelling ? <Loader2 size={19} className={styles.spinner} aria-hidden="true" /> : <X size={20} aria-hidden="true" />}
+            </button>
+          )}
+        </div>
       )}
     </section>
   );

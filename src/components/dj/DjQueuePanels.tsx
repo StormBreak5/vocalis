@@ -12,7 +12,7 @@ import {
   SkipForward,
   WifiOff,
 } from 'lucide-react';
-import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import { artistLabel, songTitleLabel, type ActiveQueueEntry } from '@/src/domain/queue.types';
 import type {
   DjQueueActionHandler,
   DjQueueActionKind,
@@ -124,8 +124,8 @@ export function DjNowSingingHero({
     <article className={`${styles.card} ${styles.hero}`} data-testid="dj-now-singing" data-dj-entry-id={entry.id}>
       <div className={styles.eyebrow}><AudioLines size={16} aria-hidden="true" />Cantando agora</div>
       <div className={styles.heroCopy}>
-        <h1 className={styles.heroTitle}>{entry.songTitle}</h1>
-        <p className={styles.heroArtist}>{entry.artist}</p>
+        <h1 className={styles.heroTitle}>{songTitleLabel(entry)}</h1>
+        <p className={styles.heroArtist}>{artistLabel(entry)}</p>
       </div>
       <div className={styles.heroSinger}>
         <span className={styles.avatar} aria-hidden="true">{initials(entry.participantName)}</span>
@@ -161,8 +161,8 @@ export function DjNextQueueCard({
       <span className={styles.nextIcon}><Headphones size={21} aria-hidden="true" /></span>
       <div className={styles.itemCopy}>
         <div className={styles.itemLabel}>Preparando · próxima</div>
-        <div className={styles.itemTitle}>{entry.songTitle}</div>
-        <div className={styles.itemMeta}>{entry.artist} · {entry.participantName}</div>
+        <div className={styles.itemTitle}>{songTitleLabel(entry)}</div>
+        <div className={styles.itemMeta}>{artistLabel(entry)} · {entry.participantName}</div>
       </div>
       <DjQueueActions
         entry={entry}
@@ -206,8 +206,8 @@ export function DjCompactQueueList({
             >
               <span className={styles.queueNumber}>{String(entry.position).padStart(2, '0')}</span>
               <div className={styles.itemCopy}>
-                <div className={styles.itemTitle}>{entry.songTitle}</div>
-                <div className={styles.itemMeta}>{entry.artist} · {entry.participantName}</div>
+                <div className={styles.itemTitle}>{songTitleLabel(entry)}</div>
+                <div className={styles.itemMeta}>{artistLabel(entry)} · {entry.participantName}</div>
               </div>
               <DjQueueActions
                 entry={entry}

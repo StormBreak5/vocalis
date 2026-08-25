@@ -1,4 +1,4 @@
-import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import { artistLabel, songTitleLabel, type ActiveQueueEntry } from '@/src/domain/queue.types';
 import styles from './display.module.css';
 
 export function DisplayQueuePreview({
@@ -21,7 +21,7 @@ export function DisplayQueuePreview({
           <li className={styles.queueRow} key={entry.id}>
             <span className={styles.queuePosition}>{String(entry.position).padStart(2, '0')}</span>
             <span className={styles.queuePerson}>{entry.participantName}</span>
-            <span className={styles.queueTrack}>{entry.songTitle} · {entry.artist}</span>
+            <span className={styles.queueTrack}>{songTitleLabel(entry)} · {artistLabel(entry)}</span>
           </li>
         ))}
       </ol>

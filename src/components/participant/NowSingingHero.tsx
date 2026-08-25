@@ -1,5 +1,5 @@
 import { Mic2 } from 'lucide-react';
-import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import { artistLabel, songTitleLabel, type ActiveQueueEntry } from '@/src/domain/queue.types';
 import styles from './participant-neon.module.css';
 
 function initials(name: string) {
@@ -17,8 +17,8 @@ export function NowSingingHero({ entry }: { entry?: ActiveQueueEntry }) {
         <div className={styles.mic} aria-hidden="true"><Mic2 size={25} /></div>
         {entry ? (
           <div>
-            <h1 className={styles.song}>{entry.songTitle}</h1>
-            <div className={styles.artist}>{entry.artist}</div>
+            <h1 className={styles.song}>{songTitleLabel(entry)}</h1>
+            <div className={styles.artist}>{artistLabel(entry)}</div>
           </div>
         ) : (
           <div className={styles.stageWaiting}>

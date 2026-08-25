@@ -1,6 +1,6 @@
 'use client';
 
-import { ActiveQueueEntry } from '@/src/domain/queue.types';
+import { ActiveQueueEntry, artistLabel, songTitleLabel } from '@/src/domain/queue.types';
 import { Badge } from '@/src/components/ui/badge';
 import { cn } from '@/src/lib/utils';
 import { Music, User } from 'lucide-react';
@@ -64,7 +64,7 @@ export function QueueItem({ entry, isCurrentUser, onCancel, isHost = false }: Qu
     >
       <div className="flex flex-col space-y-1">
         <div className="flex items-center space-x-2">
-          <span className="font-bold text-lg">{entry.songTitle}</span>
+          <span className="font-bold text-lg">{songTitleLabel(entry)}</span>
           {isCurrentUser && (
             <Badge variant="default" className="bg-primary text-primary-foreground px-2 py-0.5 text-xs">
               Você
@@ -85,7 +85,7 @@ export function QueueItem({ entry, isCurrentUser, onCancel, isHost = false }: Qu
         <div className="flex items-center text-muted-foreground text-sm space-x-4">
           <span className="flex items-center">
             <Music className="w-3 h-3 mr-1" />
-            {entry.artist}
+            {artistLabel(entry)}
           </span>
           <span className="flex items-center">
             <User className="w-3 h-3 mr-1" />

@@ -156,6 +156,9 @@
 .statusPreparing { color: var(--neon-amber); font-weight: 750; }
 .cancelButton { min-width: 48px; min-height: 48px; display: grid; place-items: center; border: 1px solid oklch(0.71 0.16 25 / 30%); border-radius: 14px; background: oklch(0.71 0.16 25 / 8%); color: oklch(0.82 0.11 25); }
 .cancelButton:disabled { opacity: 0.48; cursor: not-allowed; }
+.editButton { min-width: 48px; min-height: 48px; display: grid; place-items: center; border: 1px solid oklch(0.67 0.21 293 / 30%); border-radius: 14px; background: oklch(0.67 0.21 293 / 10%); color: oklch(0.82 0.11 293); }
+.editButton:disabled { opacity: 0.48; cursor: not-allowed; }
+.personalActions { display: flex; flex-direction: column; gap: 8px; }
 
 .queueHeader { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 7px; gap: 12px; }
 .queueHeader h2 { margin: 0; font-size: 14px; letter-spacing: -0.01em; }

@@ -1,4 +1,4 @@
-import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import { artistLabel, songTitleLabel, type ActiveQueueEntry } from '@/src/domain/queue.types';
 import styles from './participant-neon.module.css';
 
 export function CompactQueueRow({
@@ -18,10 +18,10 @@ export function CompactQueueRow({
       </span>
       <div className={styles.queueCopy}>
         <div className={styles.personalTitle}>
-          <span className={styles.queueTitle}>{entry.songTitle}</span>
+          <span className={styles.queueTitle}>{songTitleLabel(entry)}</span>
           {isCurrentUser && <span className={styles.youBadge}>VOCÊ</span>}
         </div>
-        <div className={styles.queueSub}>{entry.artist} · {entry.participantName}</div>
+        <div className={styles.queueSub}>{artistLabel(entry)} · {entry.participantName}</div>
       </div>
       <span className={styles.statusBadge} data-status={entry.status}>
         <span aria-hidden="true">{isPreparing ? '◐' : '○'}</span>

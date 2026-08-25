@@ -1,5 +1,5 @@
 import { MicVocal, Radio } from 'lucide-react';
-import type { ActiveQueueEntry } from '@/src/domain/queue.types';
+import { artistLabel, songTitleLabel, type ActiveQueueEntry } from '@/src/domain/queue.types';
 import styles from './display.module.css';
 
 export function DisplayNowSinging({ entry }: { entry: ActiveQueueEntry | null }) {
@@ -22,8 +22,8 @@ export function DisplayNowSinging({ entry }: { entry: ActiveQueueEntry | null })
     <section className={`${styles.surface} ${styles.nowPanel}`} data-display-now-singing>
       <div className={styles.eyebrow}><MicVocal size={24} aria-hidden="true" /> Cantando agora</div>
       <h1 className={styles.currentName}>{entry.participantName}</h1>
-      <div className={styles.currentSong}>{entry.songTitle}</div>
-      <div className={styles.currentArtist}>{entry.artist}</div>
+      <div className={styles.currentSong}>{songTitleLabel(entry)}</div>
+      <div className={styles.currentArtist}>{artistLabel(entry)}</div>
     </section>
   );
 }

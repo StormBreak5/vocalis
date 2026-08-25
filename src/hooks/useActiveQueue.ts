@@ -39,8 +39,8 @@ function isQueueRow(value: unknown): value is QueueRow {
   return typeof row.id === 'string'
     && typeof row.session_id === 'string'
     && typeof row.participant_id === 'string'
-    && typeof row.song_title === 'string'
-    && typeof row.artist === 'string'
+    && (row.song_title === null || typeof row.song_title === 'string')
+    && (row.artist === null || typeof row.artist === 'string')
     && typeof row.status === 'string'
     && typeof row.position === 'number'
     && typeof row.created_at === 'string'
