@@ -22,4 +22,20 @@ describe('Service Worker Policy', () => {
     expect(swContent).toMatch(/networkResponse\.headers\.get\('Cache-Control'\).*includes\('private'\)/);
     expect(swContent).not.toMatch(/SHELL_ASSETS\s*=\s*\[\s*['"]\/['"]/);
   });
+
+  it('deve usar a rota /offline dedicada como fallback de navegação (nunca "/")', () => {
+    const swPath = path.resolve(process.cwd(), 'public', 'sw.js');
+    const swContent = fs.readFileSync(swPath, 'utf8');
+
+    expect(swContent).toContain("const OFFLINE_URL = '/offline'");
+    expect(swContent).toContain('caches.match(OFFLINE_URL)');
+    expect(swContent).not.toMatch(/request\.mode === 'navigate'[\s\S]*caches\.match\('\/'\)/);
+  });
+
+  it('deve versionar o cache do shell', () => {
+    const swPath = path.resolve(process.cwd(), 'public', 'sw.js');
+    const swContent = fs.readFileSync(swPath, 'utf8');
+
+    expect(swContent).toMatch(/CACHE_NAME\s*=\s*'vocalis-shell-v\d+'/);
+  });
 });

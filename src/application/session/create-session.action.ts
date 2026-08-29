@@ -1,7 +1,7 @@
 'use server';
 
 import { createSupabaseServerClient } from '../../infrastructure/supabase/server';
-import { AppError, AppSuccess } from '../../domain/errors.types';
+import { AppError, AppSuccess, USER_MESSAGES } from '../../domain/errors.types';
 import { Session } from '../../domain/session.types';
 import { revalidatePath } from 'next/cache';
 
@@ -24,6 +24,9 @@ export async function createSessionAction(): Promise<AppSuccess<{ session: Sessi
     const { data: newSession, error: rpcError } = await supabase.rpc('create_session');
 
     if (rpcError || !newSession) {
+      if (rpcError?.message?.includes('SESSION_RATE_LIMIT')) {
+        return { ok: false, code: 'SESSION_RATE_LIMIT', userMessage: USER_MESSAGES.SESSION_RATE_LIMIT };
+      }
       if (rpcError?.message?.includes('CODE_GENERATION_FAILED')) {
         return { ok: false, code: 'CODE_GENERATION_FAILED', userMessage: 'Falha ao gerar código da sala.' };
       }

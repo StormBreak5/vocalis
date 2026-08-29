@@ -9,6 +9,12 @@ import {
   getHostSessionDetails,
   getSessionStatusRowByCode,
 } from '@/src/infrastructure/supabase/queries/session.queries';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Painel do DJ',
+  robots: { index: false, follow: false },
+};
 
 export default async function HostDashboardPage({
   params,

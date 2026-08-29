@@ -8,6 +8,11 @@ describe('mapSessionError', () => {
   it('mantém inexistente/não proprietário indistinguível', () => {
     expect(mapSessionError({ message: 'SESSION_NOT_FOUND_OR_FORBIDDEN' }).code).toBe('SESSION_NOT_FOUND_OR_FORBIDDEN');
   });
+  it('mapeia o rate limit de criação de sala', () => {
+    const mapped = mapSessionError(new Error('SESSION_RATE_LIMIT'));
+    expect(mapped.code).toBe('SESSION_RATE_LIMIT');
+    expect(mapped.userMessage).toContain('Aguarde');
+  });
   it('sanitiza erros desconhecidos', () => {
     expect(mapSessionError(new Error('password=secret'))).toEqual({ ok:false, code:'UNKNOWN', userMessage:'Ocorreu um erro inesperado.' });
   });
