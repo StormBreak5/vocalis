@@ -8,17 +8,36 @@ import { getMetadataBaseUrl } from "@/src/infrastructure/config/app-public-url.s
 import "./globals.css";
 
 
+const APP_NAME = "Vocalis";
+const APP_TAGLINE = "Sua fila de karaokê ao vivo";
+
 export const metadata: Metadata = {
   metadataBase: getMetadataBaseUrl(),
-  title: "Vocalis",
-  description: "Karaokê Queue Manager",
+  title: {
+    default: `${APP_NAME} — Karaokê ao Vivo`,
+    template: `%s · ${APP_NAME}`,
+  },
+  description: APP_TAGLINE,
+  applicationName: APP_NAME,
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Vocalis",
+    title: APP_NAME,
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: APP_NAME,
+    locale: "pt_BR",
+    title: `${APP_NAME} — Karaokê ao Vivo`,
+    description: APP_TAGLINE,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${APP_NAME} — Karaokê ao Vivo`,
+    description: APP_TAGLINE,
   },
 };
 
