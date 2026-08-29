@@ -13,11 +13,15 @@ import { env } from '../env';
  * horas) perde o token no meio e o RLS passa a negar as leituras SSR,
  * derrubando o painel.
  *
+ * Segue o padrão canônico do `@supabase/ssr` para Next.js: cria a resposta,
+ * chama `getUser()` (que dispara o refresh + o `setAll`), e devolve a resposta
+ * sem mexer em mais nada.
+ *
  * NÃO chama `signInAnonymously()` — criar identidade continua exclusivo das
  * Server Actions (`create_session`, `join_session`, `redeem_display_pairing_code`).
  */
 export async function updateSupabaseSession(request: NextRequest): Promise<NextResponse> {
-  let response = NextResponse.next({ request });
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient<Database>(
     env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,24 +35,29 @@ export async function updateSupabaseSession(request: NextRequest): Promise<NextR
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
-          response = NextResponse.next({ request });
+          supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) => {
-            response.cookies.set(name, value, options);
+            supabaseResponse.cookies.set(name, value, options);
           });
         },
       },
     },
   );
 
-  // Dispara o refresh do token (e a escrita do cookie via setAll acima).
   await supabase.auth.getUser();
 
-  // Respostas que carregam cookie de auth nunca podem ser cacheadas por
-  // CDN/proxy (recomendação do @supabase/ssr).
-  response.headers.set(
-    'Cache-Control',
-    'private, no-cache, no-store, max-age=0, must-revalidate',
-  );
+  return supabaseResponse;
+}
 
-  return response;
+/**
+ * Requisições de prefetch do App Router: o Next dispara várias por página só
+ * para aquecer o cache do roteador. Não precisam (nem devem) renovar sessão —
+ * pular reduz drasticamente o número de chamadas ao Auth do Supabase.
+ */
+export function isPrefetchRequest(request: NextRequest): boolean {
+  return (
+    request.headers.get('next-router-prefetch') === '1' ||
+    request.headers.get('purpose') === 'prefetch' ||
+    request.headers.get('x-middleware-prefetch') === '1'
+  );
 }

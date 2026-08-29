@@ -1,7 +1,10 @@
-import type { NextRequest } from 'next/server';
-import { updateSupabaseSession } from '@/src/infrastructure/supabase/proxy';
+import { NextResponse, type NextRequest } from 'next/server';
+import { isPrefetchRequest, updateSupabaseSession } from '@/src/infrastructure/supabase/proxy';
 
 export async function proxy(request: NextRequest) {
+  if (isPrefetchRequest(request)) {
+    return NextResponse.next({ request });
+  }
   return updateSupabaseSession(request);
 }
 
