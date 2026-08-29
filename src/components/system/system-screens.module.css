@@ -1,0 +1,114 @@
+/*
+ * Estilos autossuficientes: usados também por app/global-error.tsx, que
+ * substitui o root layout inteiro e NÃO carrega app/globals.css. Nada aqui
+ * pode depender de variáveis/utilitários globais.
+ */
+
+.screen {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem calc(2rem + env(safe-area-inset-bottom));
+  background: #09090b;
+  color: #fafafa;
+  font-family: "Roboto Variable", ui-sans-serif, system-ui, sans-serif;
+  text-align: center;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: 28rem;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 1rem;
+  background: rgba(244, 63, 94, 0.12);
+  color: #fb7185;
+}
+
+.icon svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+.iconNeutral {
+  background: rgba(255, 255, 255, 0.08);
+  color: #a1a1aa;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.description {
+  margin: 0;
+  color: #a1a1aa;
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  min-width: 48px;
+  padding: 0 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  background: #fafafa;
+  color: #09090b;
+  transition: opacity 0.15s ease;
+}
+
+.button:hover {
+  opacity: 0.9;
+}
+
+.buttonSecondary {
+  background: transparent;
+  color: #fafafa;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.spinner {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #fafafa;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+}

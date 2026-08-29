@@ -1,9 +1,12 @@
-const CACHE_NAME = 'vocalis-shell-v2';
+const CACHE_NAME = 'vocalis-shell-v3';
+
+const OFFLINE_URL = '/offline';
 
 const SHELL_ASSETS = [
   '/manifest.webmanifest',
   '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/icons/icon-512.png',
+  OFFLINE_URL
 ];
 
 self.addEventListener('install', (event) => {
@@ -103,9 +106,9 @@ self.addEventListener('fetch', (event) => {
         return caches.match(request).then((cachedResponse) => {
           if (cachedResponse) return cachedResponse;
           
-          // Se for uma requisição de navegação (HTML), podemos tentar retornar o fallback
+          // Se for uma requisição de navegação (HTML), retornar a tela offline dedicada
           if (request.mode === 'navigate') {
-            return caches.match('/');
+            return caches.match(OFFLINE_URL);
           }
           
           return new Response('Offline', { 

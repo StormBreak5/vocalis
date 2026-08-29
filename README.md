@@ -50,7 +50,7 @@ Faça uma cópia do arquivo de variáveis de ambiente:
 ```bash
 cp .env.example .env.local
 ```
-Preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` e `APP_PUBLIC_URL`. Essas credenciais podem apontar tanto para um projeto Supabase remoto (via `supabase link`) quanto para a instância local do Docker (`http://127.0.0.1:54321` depois de `supabase start`) — **confira qual das duas está configurada** antes de rodar migrations ou testar mudanças de banco: `supabase db reset`/`db push` sem `--linked` afeta só o Docker local, enquanto o app com `.env.local` apontando pro projeto remoto não vai enxergar essa mudança até um `supabase db push --linked` explícito.
+Preencha `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` e `APP_PUBLIC_URL` — são as únicas variáveis que o app lê em runtime (e as únicas que vão para a Vercel, além das do Sentry). `SUPABASE_SERVICE_ROLE_KEY` só é usada pelos testes de banco/integração e normalmente vem de `supabase status`; preencha no `.env.local` apenas se for rodar esses testes contra um projeto remoto — **nunca** configure essa chave na Vercel. Essas credenciais podem apontar tanto para um projeto Supabase remoto (via `supabase link`) quanto para a instância local do Docker (`http://127.0.0.1:54321` depois de `supabase start`) — **confira qual das duas está configurada** antes de rodar migrations ou testar mudanças de banco: `supabase db reset`/`db push` sem `--linked` afeta só o Docker local, enquanto o app com `.env.local` apontando pro projeto remoto não vai enxergar essa mudança até um `supabase db push --linked` explícito.
 
 ### 3. Instalação e Execução
 Instale as dependências:

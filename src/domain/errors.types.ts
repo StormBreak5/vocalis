@@ -2,6 +2,7 @@ export type ErrorCode =
   | 'AUTH_FAILED'
   | 'AUTH_REQUIRED'
   | 'CODE_GENERATION_FAILED'
+  | 'SESSION_RATE_LIMIT'
   | 'SESSION_NOT_FOUND'
   | 'SESSION_NOT_FOUND_OR_FORBIDDEN'
   | 'SESSION_CLOSED'
@@ -30,6 +31,7 @@ export const USER_MESSAGES: Record<ErrorCode, string> = {
   AUTH_FAILED: 'Falha na autenticação.',
   AUTH_REQUIRED: 'Você precisa estar conectado para realizar esta ação.',
   CODE_GENERATION_FAILED: 'Falha ao gerar código da sala.',
+  SESSION_RATE_LIMIT: 'Muitas salas criadas em pouco tempo. Aguarde alguns minutos e tente de novo.',
   SESSION_NOT_FOUND: 'Sala não encontrada.',
   SESSION_NOT_FOUND_OR_FORBIDDEN: 'Sala não encontrada ou indisponível.',
   SESSION_CLOSED: 'Esta sala já foi encerrada.',

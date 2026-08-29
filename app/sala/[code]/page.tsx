@@ -8,6 +8,12 @@ import { SessionLifecycleProvider } from '@/src/components/session/SessionLifecy
 import { SessionClosedDialog } from '@/src/components/session/SessionClosedDialog';
 import { ParticipantQueueExperience } from '@/src/components/participant/ParticipantQueueExperience';
 import { generateRoomEntryQr } from '@/src/infrastructure/qr/room-entry-qr.server';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Sala',
+  robots: { index: false, follow: false },
+};
 
 export default async function GuestRoomPage({
   params,

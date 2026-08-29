@@ -2,6 +2,12 @@ import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/src/infrastructure/supabase/server';
 import { listHostSessions } from '@/src/infrastructure/supabase/queries/session-history.queries';
 import { HistorySessionList } from '@/src/components/history/HistorySessionList';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Histórico de sessões',
+  robots: { index: false, follow: false },
+};
 
 export default async function HistoricoPage() {
   const supabase = await createSupabaseServerClient();

@@ -4,10 +4,12 @@ import "@fontsource-variable/roboto-mono/wght.css";
 import { OfflineBanner } from "@/src/components/ui/OfflineBanner";
 import { Toaster } from "@/src/components/ui/sonner";
 import { ServiceWorkerManager } from "@/src/components/pwa/ServiceWorkerManager";
+import { getMetadataBaseUrl } from "@/src/infrastructure/config/app-public-url.server";
 import "./globals.css";
 
 
 export const metadata: Metadata = {
+  metadataBase: getMetadataBaseUrl(),
   title: "Vocalis",
   description: "Karaokê Queue Manager",
   appleWebApp: {
@@ -20,11 +22,11 @@ export const metadata: Metadata = {
   },
 };
 
+// Sem `maximumScale`/`userScalable: false`: bloquear zoom viola WCAG 2.1 AA
+// (1.4.4 Resize Text) — e o app se compromete com AA.
 export const viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: "#09090b",
 };
 

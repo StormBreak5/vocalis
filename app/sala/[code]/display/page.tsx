@@ -8,6 +8,12 @@ import { getDisplaySessionDetails } from '@/src/application/display-pairing/get-
 import { normalizeCode, validateSessionCode } from '@/src/domain/validators/session-code.validator';
 import { generateRoomEntryQr } from '@/src/infrastructure/qr/room-entry-qr.server';
 import { getSessionStatusRowByCode } from '@/src/infrastructure/supabase/queries/session.queries';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Telão',
+  robots: { index: false, follow: false },
+};
 
 export default async function PublicDisplayPage({
   params,
